@@ -23,6 +23,7 @@ model User {
   anniversaries          Anniversary[]
   externalWishlistUrls   String[]
   wishlist               Wishlist?
+  wishlistLinks          WishlistLink[]
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
 }
@@ -58,4 +59,14 @@ model WishlistItem {
   reservedAt   DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+}
+
+model WishlistLink {
+  id          String   @id @default(cuid())
+  label       String
+  url         String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
 }
