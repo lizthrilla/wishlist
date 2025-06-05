@@ -53,18 +53,40 @@ export default function AuthForm({ mode, onToggleMode }: AuthFormProps) {
   };
 
   const handleLogin = async () => {
-    const result = await signIn('credentials', {
-      email: form.email,
-      password: form.password,
-      redirect: false,
-    });
+    try {
+      console.log('Attempting login for:', form.email);
+      const result = await signIn('credentials', {
+        email: form.email,
+        password: form.password,
+        redirect: false,
+      });
+      console.log('SignIn result:', result);
 
-    if (result?.error) {
-      setError('Invalid email or password');
+      if (!result) {
+        console.log('No result from signIn');
+        setError('An unexpected error occurred');
+        return false;
+      }
+
+      if (result.error) {
+        console.log('SignIn error:', result.error);
+        setError('Invalid email or password');
+        return false;
+      }
+
+      if (result.ok) {
+        console.log('Login successful');
+        return true;
+      }
+
+      console.log('Unexpected result:', result);
+      setError('An unexpected error occurred');
+      return false;
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('An unexpected error occurred');
       return false;
     }
-
-    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -170,6 +192,7 @@ export default function AuthForm({ mode, onToggleMode }: AuthFormProps) {
           buttonText={mode === 'login' ? 'Sign in' : 'Sign up'} 
           loadingText={mode === 'login' ? 'Signing in...' : 'Signing up...'} 
           className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed" 
+          type="submit"
         />
       </div>
 
