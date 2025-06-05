@@ -40,6 +40,46 @@ export default function ProfileDisplay({ profile, setEditMode }: { profile: Prof
         </p>
       </div>
     )}
+
+    {profile.anniversaries && profile.anniversaries.length > 0 && (
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Anniversaries</label>
+        <div className="mt-2 space-y-2">
+          {profile.anniversaries.map((anniversary) => (
+            <div key={anniversary.id} className="flex items-center gap-2">
+              <span className="text-lg">
+                {anniversary.label}: {formatDate(anniversary.date)}
+              </span>
+              {anniversary.isPrimary && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                  Primary
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {profile.wishlistLinks && profile.wishlistLinks.length > 0 && (
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Wishlist Links</label>
+        <div className="mt-2 space-y-2">
+          {profile.wishlistLinks.map((link) => (
+            <div key={link.id} className="flex items-center gap-2">
+              <a 
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-indigo-600 hover:text-indigo-500"
+              >
+                {link.label}
+              </a>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
     
     <div className="text-sm text-gray-500 flex justify-between">
       <div>
