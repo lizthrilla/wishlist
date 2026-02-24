@@ -1,0 +1,12 @@
+@baseUrl = http://localhost:3000/api
+
+### Add an item to a wishlist
+@wishlistId = 1
+POST {{baseUrl}}/wishlists/{{wishlistId}}/items
+Content-Type: application/json
+
+{
+  "name": "Camping stove",
+  "url": "https://example.com/stove",
+  "price": 79.99
+}
