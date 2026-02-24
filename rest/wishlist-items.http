@@ -1,0 +1,20 @@
+@baseUrl = http://localhost:3000/api
+@page = 1
+@limit = 10
+@itemId = 1
+@userId = 2
+
+### List wishlist items (pagination: page + limit)
+GET {{baseUrl}}/wishlist-items?page={{page}}&limit={{limit}}
+Accept: application/json
+
+### List wishlist items (pagination: page + limit, userid)
+GET {{baseUrl}}/wishlist-items?userId={{userId}}page={{page}}&limit={{limit}}
+Accept: application/json
+
+### Delete a wishlist item by id (returns 204 on success)
+DELETE {{baseUrl}}/wishlist-items/{{itemId}}
+Accept: application/json
+
+### Note
+# Creation happens via wishlists: see rest/wishlists.http (POST /wishlists/{wishlistId}/items)
