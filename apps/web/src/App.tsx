@@ -1,11 +1,21 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
+import { getWishlistItems } from './api/WishlistItems'
 
 function App() {
   const [count, setCount] = useState(0)
+  const [wishlist, setWishlist] = useState<any[]>([])
 
+  useEffect(() => {
+    const fetchData = async () => {
+      const data = await getWishlistItems(1, 10)
+      setWishlist(data.data)
+    }
+    fetchData()
+  }, [])
+  console.log(wishlist)
   return (
     <>
       <div>

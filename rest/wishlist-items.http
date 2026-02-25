@@ -4,12 +4,16 @@
 @itemId = 1
 @userId = 2
 
+### List all wishlist items with no pagination
+GET {{baseUrl}}/wishlist-items
+Accept: application/json
+
 ### List wishlist items (pagination: page + limit)
 GET {{baseUrl}}/wishlist-items?page={{page}}&limit={{limit}}
 Accept: application/json
 
 ### List wishlist items (pagination: page + limit, userid)
-GET {{baseUrl}}/wishlist-items?userId={{userId}}page={{page}}&limit={{limit}}
+GET {{baseUrl}}/wishlist-items?page={{page}}&limit={{limit}}&userId={{userId}}
 Accept: application/json
 
 ### Delete a wishlist item by id (returns 204 on success)
