@@ -4,6 +4,6 @@ import { WishlistsService } from './wishlists.service';
 
 @Module({
   controllers: [WishlistsController],
-  providers: [WishlistsService]
+  providers: [WishlistsService],
 })
 export class WishlistsModule {}
