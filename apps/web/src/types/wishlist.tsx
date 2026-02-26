@@ -22,3 +22,10 @@ export interface CardProps {
     ownerName: string
     onDelete: (id: number) => void
 }
+
+export interface MetaDataType {
+  limit: number
+  page: number
+  total: number
+  totalPages: number
+}

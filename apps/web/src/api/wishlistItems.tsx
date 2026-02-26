@@ -25,7 +25,6 @@ export async function getWishlistItems(
 }
 
 export async function deleteWishListItem(itemId: number) {
-
     const response = await fetch(
         `${BASE_URL}/api/wishlist-items/${itemId}`,
         { method: 'DELETE'}
@@ -34,5 +33,4 @@ export async function deleteWishListItem(itemId: number) {
     if (!response.ok) {
         throw new Error(`Failed to delete itemId: ${itemId}`)
     }
-    return response.json()
 }
