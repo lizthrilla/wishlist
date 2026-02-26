@@ -1,19 +1,19 @@
 import { useCallback, useState, useEffect } from 'react'
 import './App.css'
 import { getWishlistItems, deleteWishListItem } from './api/wishlistItems'
-import {Card, DropDown, PaginationButtons, UserSearch} from './components/index'
-import type { WishlistItemType, MetaDataType } from './types/wishlist'
+import { Card, DropDown, PaginationButtons, UserSearch } from './components/index'
+import type { WishlistItemResponse, PaginationMeta } from './types/wishlist'
 
 const DEFAULT_LIMIT = 10
 
 function App() {
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-  const [wishlistItems, setWishlistItems] = useState<WishlistItemType[]>([])
+  const [wishlistItems, setWishlistItems] = useState<WishlistItemResponse[]>([])
   const [inputUserName, setInputUserName] = useState<string>("");
   const [searchUserName, setSearchUserName] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1)
-  const [meta, setMeta] = useState<MetaDataType>()
+  const [meta, setMeta] = useState<PaginationMeta>()
   const [limit, setLimit] = useState<number>(DEFAULT_LIMIT)
 
   const fetchData = useCallback(async () => {
@@ -64,7 +64,7 @@ function App() {
           : (<div className="flex flex-col items-center">
               <UserSearch onSubmit={handleSearchSubmit} value={inputUserName} onChange={setInputUserName}/>
               <div className="w-full max-w-md space-y-6">
-                {wishlistItems.map((item: WishlistItemType) => (
+                {wishlistItems.map((item: WishlistItemResponse) => (
                   <Card {...item} key={item.id} onDelete={onDeleteItem}/>
                 ))}
               </div>

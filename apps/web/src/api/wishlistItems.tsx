@@ -1,10 +1,12 @@
+import type { PaginatedWishlistItems } from '@wishlist/shared'
+
 const BASE_URL = 'http://localhost:3000'
 
 export async function getWishlistItems(
     page: number,
     limit: number,
     userId?: number,
-) {
+): Promise<PaginatedWishlistItems> {
     const params = new URLSearchParams({
         page: String(page),
         limit: String(limit),
@@ -21,7 +23,7 @@ export async function getWishlistItems(
     if (!response.ok) {
         throw new Error('Failed to fetch wishlist items')
     }
-    return response.json()
+    return response.json() as Promise<PaginatedWishlistItems>
 }
 
 export async function deleteWishListItem(itemId: number) {

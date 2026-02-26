@@ -1,31 +1,11 @@
-export interface WishlistItemType {
-    id: number
-    name: string
-    url: string
-    price: number
-    createdAt: string
-    wishlistId: number
-    wishlistTitle: string
-    ownerId: number
-    ownerName: string
-}
+import type {
+  PaginatedWishlistItems,
+  PaginationMeta,
+  WishlistItemResponse,
+} from '@wishlist/shared';
 
-export interface CardProps {
-    id: number
-    name: string
-    url?: string
-    price?: number
-    createdAt: string
-    wishlistId: number
-    wishlistTitle: string
-    ownerId: number
-    ownerName: string
-    onDelete: (id: number) => void
-}
+export type { WishlistItemResponse, PaginationMeta, PaginatedWishlistItems };
 
-export interface MetaDataType {
-  limit: number
-  page: number
-  total: number
-  totalPages: number
+export interface CardProps extends WishlistItemResponse {
+  onDelete: (id: number) => void;
 }
