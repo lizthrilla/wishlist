@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateWishlistItemDto } from '../wishlist-items/dto/create-wishlist-item.dto';
 
@@ -6,9 +6,6 @@ import { CreateWishlistItemDto } from '../wishlist-items/dto/create-wishlist-ite
 export class WishlistsService {
   constructor(private prisma: PrismaService) {}
   async createWishlistItem(wishlistId: number, dto: CreateWishlistItemDto) {
-    if (!dto.name || dto.name.trim().length === 0) {
-      throw new BadRequestException('name is required');
-    }
     const wishlist = await this.prisma.wishlist.findUnique({
       where: { id: wishlistId },
     });
