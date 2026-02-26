@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -85,6 +86,29 @@ describe('WishlistItemsService', () => {
         totalPages: 3,
       },
     });
+  });
+
+  it('calculates totalPages with remainder and skips correctly for first page', async () => {
+    prismaMock.wishlistItem.findMany = jest.fn().mockResolvedValue([]);
+    prismaMock.wishlistItem.count = jest.fn().mockResolvedValue(7);
+
+    await service.getWishlistItems(1, 5);
+
+    expect(prismaMock.wishlistItem.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skip: 0,
+        take: 5,
+      }),
+    );
+    const result = await service.getWishlistItems(2, 5);
+
+    expect(result.meta.totalPages).toBe(2); // 7 items with limit 5 => ceil(7/5)=2
+    expect(prismaMock.wishlistItem.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        skip: 5,
+        take: 5,
+      }),
+    );
   });
 
   it('filters results by userId when provided', async () => {
