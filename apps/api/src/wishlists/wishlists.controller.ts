@@ -1,6 +1,6 @@
 import { Body, Controller, Post, Param, ParseIntPipe } from '@nestjs/common';
 import { WishlistsService } from './wishlists.service';
-import { CreateWishlistItemDto } from 'src/wishlist-items/dto/create-wishlist-item.dto';
+import { CreateWishlistItemDto } from '../wishlist-items/dto/create-wishlist-item.dto';
 
 @Controller('wishlists')
 export class WishlistsController {

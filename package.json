@@ -10,7 +10,8 @@
   "scripts": {
     "dev:web": "npm run dev -w apps/web",
     "dev:api": "npm run start:dev -w apps/api",
-    "dev": "npm run dev:web & npm run dev:api"
+    "dev": "npm run dev:web & npm run dev:api",
+    "test": "npm test --prefix apps/api"
   },
   "keywords": [],
   "author": "",
