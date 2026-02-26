@@ -6,8 +6,9 @@ import {
   IsUrl,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
+import type { CreateWishlistItemInput } from '@wishlist/shared';
 
-export class CreateWishlistItemDto {
+export class CreateWishlistItemDto implements CreateWishlistItemInput {
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )

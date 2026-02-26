@@ -15,12 +15,12 @@ async function main() {
             create: [
               { name: 'Kindle', price: 120 },
               { name: 'Running Shoes', price: 85 },
-              { name: 'Board Game', price: 40 }
-            ]
-          }
-        }
-      }
-    }
+              { name: 'Board Game', price: 40 },
+            ],
+          },
+        },
+      },
+    },
   });
 
   const user2 = await prisma.user.create({
@@ -33,12 +33,12 @@ async function main() {
           items: {
             create: [
               { name: 'Headphones', price: 200 },
-              { name: 'Backpack', price: 60 }
-            ]
-          }
-        }
-      }
-    }
+              { name: 'Backpack', price: 60 },
+            ],
+          },
+        },
+      },
+    },
   });
 
   console.log('Seeded:', user1.name, user2.name);

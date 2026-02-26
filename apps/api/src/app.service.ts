@@ -11,7 +11,7 @@ export class AppService {
   async getDebugItems() {
     return this.prisma.wishlistItem.findMany({
       take: 10,
-      orderBy: { createdAt: 'desc'},
+      orderBy: { createdAt: 'desc' },
       include: {
         wishlist: {
           include: {

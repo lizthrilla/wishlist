@@ -49,9 +49,7 @@ describe('WishlistItemsService', () => {
       },
     ];
 
-    prismaMock.wishlistItem.findMany = jest
-      .fn()
-      .mockResolvedValue(sampleItems);
+    prismaMock.wishlistItem.findMany = jest.fn().mockResolvedValue(sampleItems);
     prismaMock.wishlistItem.count = jest.fn().mockResolvedValue(12);
 
     const result = await service.getWishlistItems(2, 5);
