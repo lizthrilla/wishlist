@@ -22,3 +22,15 @@ Accept: application/json
 
 ### Note
 # Creation happens via wishlists: see rest/wishlists.http (POST /wishlists/{wishlistId}/items)
+
+### Pagination smoke test (small page)
+GET {{baseUrl}}/wishlist-items?page=1&limit=2
+Accept: application/json
+
+### Pagination page 2 (expects different items than page 1)
+GET {{baseUrl}}/wishlist-items?page=2&limit=2
+Accept: application/json
+
+### Pagination with user filter
+GET {{baseUrl}}/wishlist-items?page=1&limit=2&userId=1
+Accept: application/json
