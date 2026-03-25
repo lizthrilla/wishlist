@@ -4,13 +4,22 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { FamiliesService } from '../families/families.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class WishlistItemsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly familiesService: FamiliesService,
+  ) {}
 
-  async getWishlistItems(page: number, limit: number, userId?: number) {
+  async getWishlistItems(
+    currentUserId: number,
+    page: number,
+    limit: number,
+    userId?: number,
+  ) {
     // need to include queries here and they are numbers because the controller transformed it
     const skip = (page - 1) * limit;
     // implementing offset Pagination using limit and offset.  Skip maps to offset and takes maps to Limit
@@ -19,7 +28,38 @@ export class WishlistItemsService {
     // OFFSET 10;
     // Page 1 = entries 1 - 5 => limit 5 offset 0
     // Page 2 = 6 - 10 => limit 5 offset 5 (skip first 5)
-    const where = userId ? { wishlist: { userId } } : {};
+    if (userId && userId !== currentUserId) {
+      await this.familiesService.assertSharedFamily(currentUserId, userId);
+    }
+
+    const where: Prisma.WishlistItemWhereInput = userId
+      ? { wishlist: { is: { userId } } }
+      : {
+          OR: [
+            { wishlist: { is: { userId: currentUserId } } },
+            {
+              wishlist: {
+                is: {
+                  user: {
+                    is: {
+                      memberships: {
+                        some: {
+                          family: {
+                            memberships: {
+                              some: {
+                                userId: currentUserId,
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        };
     const [data, total] = await Promise.all([
       this.prisma.wishlistItem.findMany({
         where,

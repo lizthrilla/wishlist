@@ -41,4 +41,25 @@ describe('WishlistItemsController', () => {
     expect(serviceMock.deleteWishlistItem).toHaveBeenCalledWith(42, 7);
     expect(result).toBeUndefined();
   });
+
+  it('passes the authenticated user to wishlist reads', async () => {
+    serviceMock.getWishlistItems = jest.fn().mockResolvedValue({
+      data: [],
+      meta: {
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0,
+      },
+    });
+
+    await controller.getWishlistItems(
+      { id: 7, name: 'Alice', email: 'alice@example.com' },
+      '1',
+      '10',
+      '9',
+    );
+
+    expect(serviceMock.getWishlistItems).toHaveBeenCalledWith(7, 1, 10, 9);
+  });
 });

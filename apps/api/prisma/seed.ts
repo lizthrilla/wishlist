@@ -50,6 +50,17 @@ async function main() {
     },
   });
 
+  await prisma.family.create({
+    data: {
+      name: 'Tiller Family',
+      joinCode: 'FAMILY1',
+      creatorId: user1.id,
+      memberships: {
+        create: [{ userId: user1.id }, { userId: user2.id }],
+      },
+    },
+  });
+
   console.log('Seeded:', user1.name, user2.name);
 }
 

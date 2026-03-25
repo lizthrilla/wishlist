@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
+import { FamiliesService } from '../families/families.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { WishlistItemsService } from './wishlist-items.service';
 
@@ -15,12 +16,16 @@ describe('WishlistItemsService', () => {
       delete: jest.fn(),
     },
   } as unknown as PrismaService;
+  const familiesServiceMock = {
+    assertSharedFamily: jest.fn(),
+  } as unknown as FamiliesService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         WishlistItemsService,
         { provide: PrismaService, useValue: prismaMock },
+        { provide: FamiliesService, useValue: familiesServiceMock },
       ],
     }).compile();
 
@@ -53,17 +58,69 @@ describe('WishlistItemsService', () => {
     prismaMock.wishlistItem.findMany = jest.fn().mockResolvedValue(sampleItems);
     prismaMock.wishlistItem.count = jest.fn().mockResolvedValue(12);
 
-    const result = await service.getWishlistItems(2, 5);
+    const result = await service.getWishlistItems(7, 2, 5);
 
     expect(prismaMock.wishlistItem.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {},
+        where: {
+          OR: [
+            { wishlist: { is: { userId: 7 } } },
+            {
+              wishlist: {
+                is: {
+                  user: {
+                    is: {
+                      memberships: {
+                        some: {
+                          family: {
+                            memberships: {
+                              some: {
+                                userId: 7,
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
         orderBy: { createdAt: 'desc' },
         skip: 5,
         take: 5,
       }),
     );
-    expect(prismaMock.wishlistItem.count).toHaveBeenCalledWith({ where: {} });
+    expect(prismaMock.wishlistItem.count).toHaveBeenCalledWith({
+      where: {
+        OR: [
+          { wishlist: { is: { userId: 7 } } },
+          {
+            wishlist: {
+              is: {
+                user: {
+                  is: {
+                    memberships: {
+                      some: {
+                        family: {
+                          memberships: {
+                            some: {
+                              userId: 7,
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+    });
     expect(result).toEqual({
       data: [
         {
@@ -91,7 +148,7 @@ describe('WishlistItemsService', () => {
     prismaMock.wishlistItem.findMany = jest.fn().mockResolvedValue([]);
     prismaMock.wishlistItem.count = jest.fn().mockResolvedValue(7);
 
-    await service.getWishlistItems(1, 5);
+    await service.getWishlistItems(7, 1, 5);
 
     expect(prismaMock.wishlistItem.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -99,7 +156,7 @@ describe('WishlistItemsService', () => {
         take: 5,
       }),
     );
-    const result = await service.getWishlistItems(2, 5);
+    const result = await service.getWishlistItems(7, 2, 5);
 
     expect(result.meta.totalPages).toBe(2); // 7 items with limit 5 => ceil(7/5)=2
     expect(prismaMock.wishlistItem.findMany).toHaveBeenLastCalledWith(
@@ -113,19 +170,84 @@ describe('WishlistItemsService', () => {
   it('filters results by userId when provided', async () => {
     prismaMock.wishlistItem.findMany = jest.fn().mockResolvedValue([]);
     prismaMock.wishlistItem.count = jest.fn().mockResolvedValue(0);
+    familiesServiceMock.assertSharedFamily = jest
+      .fn()
+      .mockResolvedValue(undefined);
 
-    await service.getWishlistItems(1, 10, 42);
+    await service.getWishlistItems(7, 1, 10, 42);
 
+    expect(familiesServiceMock.assertSharedFamily).toHaveBeenCalledWith(7, 42);
     expect(prismaMock.wishlistItem.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { wishlist: { userId: 42 } },
+        where: { wishlist: { is: { userId: 42 } } },
         skip: 0,
         take: 10,
       }),
     );
     expect(prismaMock.wishlistItem.count).toHaveBeenCalledWith({
-      where: { wishlist: { userId: 42 } },
+      where: { wishlist: { is: { userId: 42 } } },
     });
+  });
+
+  it('limits general results to the current user and shared-family members', async () => {
+    prismaMock.wishlistItem.findMany = jest.fn().mockResolvedValue([]);
+    prismaMock.wishlistItem.count = jest.fn().mockResolvedValue(0);
+
+    await service.getWishlistItems(7, 1, 10);
+
+    expect(prismaMock.wishlistItem.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          OR: [
+            { wishlist: { is: { userId: 7 } } },
+            {
+              wishlist: {
+                is: {
+                  user: {
+                    is: {
+                      memberships: {
+                        some: {
+                          family: {
+                            memberships: {
+                              some: {
+                                userId: 7,
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      }),
+    );
+  });
+
+  it('does not require a shared family check for the current user', async () => {
+    prismaMock.wishlistItem.findMany = jest.fn().mockResolvedValue([]);
+    prismaMock.wishlistItem.count = jest.fn().mockResolvedValue(0);
+
+    await service.getWishlistItems(7, 1, 10, 7);
+
+    expect(familiesServiceMock.assertSharedFamily).not.toHaveBeenCalled();
+  });
+
+  it('surfaces shared-family authorization failures', async () => {
+    familiesServiceMock.assertSharedFamily = jest
+      .fn()
+      .mockRejectedValue(
+        new ForbiddenException(
+          'You can only view wishlists for members of your families',
+        ),
+      );
+
+    await expect(service.getWishlistItems(1, 1, 10, 99)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
   });
 
   it('deletes a wishlist item successfully', async () => {

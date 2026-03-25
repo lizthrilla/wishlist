@@ -35,6 +35,14 @@ export function createSessionToken() {
   return randomBytes(32).toString('hex');
 }
 
+export function createResetToken() {
+  return randomBytes(32).toString('hex');
+}
+
+export function createJoinCode() {
+  return randomBytes(4).toString('hex').toUpperCase();
+}
+
 export function hashSessionToken(token: string) {
   return createHash('sha256').update(token).digest('hex');
 }

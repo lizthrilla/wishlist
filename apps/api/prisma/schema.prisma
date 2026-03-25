@@ -11,14 +11,17 @@ datasource db {
 }
 
 model User {
-  id           Int       @id @default(autoincrement())
-  name         String
-  email        String    @unique
-  passwordHash String
-  sessions     Session[]
-  wishlists    Wishlist[]
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                  Int                  @id @default(autoincrement())
+  name                String
+  email               String               @unique
+  passwordHash        String
+  sessions            Session[]
+  passwordResetTokens PasswordResetToken[]
+  memberships         FamilyMembership[]
+  createdFamilies     Family[]             @relation("FamilyCreator")
+  wishlists           Wishlist[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 }
 
 model Session {
@@ -28,6 +31,38 @@ model Session {
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    Int
+}
+
+model PasswordResetToken {
+  id        Int       @id @default(autoincrement())
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+}
+
+model Family {
+  id          Int                @id @default(autoincrement())
+  name        String
+  joinCode    String             @unique
+  creator     User               @relation("FamilyCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  creatorId   Int
+  memberships FamilyMembership[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+model FamilyMembership {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  familyId  Int
+  createdAt DateTime @default(now())
+
+  @@unique([userId, familyId])
 }
 
 model Wishlist {
