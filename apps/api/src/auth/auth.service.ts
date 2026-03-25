@@ -4,6 +4,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   PASSWORD_RESET_DURATION_MS,
@@ -29,33 +30,70 @@ export class AuthService {
     const email = dto.email.trim().toLowerCase();
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
+      select: {
+        id: true,
+        passwordHash: true,
+      },
     });
 
     if (existingUser) {
+      if (!existingUser.passwordHash) {
+        const passwordHash = await hashPassword(dto.password);
+
+        return this.prisma.user.update({
+          where: {
+            id: existingUser.id,
+          },
+          data: {
+            name: dto.name.trim(),
+            passwordHash,
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            createdAt: true,
+          },
+        });
+      }
+
       throw new ConflictException('An account with that email already exists');
     }
 
     const passwordHash = await hashPassword(dto.password);
-    const user = await this.prisma.user.create({
-      data: {
-        name: dto.name.trim(),
-        email,
-        passwordHash,
-        wishlists: {
-          create: {
-            title: `${dto.name.trim()}'s Wishlist`,
+    try {
+      const user = await this.prisma.user.create({
+        data: {
+          name: dto.name.trim(),
+          email,
+          passwordHash,
+          wishlists: {
+            create: {
+              title: `${dto.name.trim()}'s Wishlist`,
+            },
           },
         },
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        createdAt: true,
-      },
-    });
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          createdAt: true,
+        },
+      });
 
-    return user;
+      return user;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'An account with that email already exists',
+        );
+      }
+
+      throw error;
+    }
   }
 
   async login(dto: LoginDto) {

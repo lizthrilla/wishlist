@@ -61,7 +61,12 @@ export function parseCookieHeader(cookieHeader?: string | null) {
         return cookies;
       }
 
-      cookies[rawName] = decodeURIComponent(rawValue.join('='));
+      try {
+        cookies[rawName] = decodeURIComponent(rawValue.join('='));
+      } catch {
+        return cookies;
+      }
+
       return cookies;
     }, {});
 }

@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/unbound-method */
 import { BadRequestException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthService } from './auth.service';
@@ -11,6 +12,7 @@ describe('AuthService', () => {
     user: {
       findUnique: jest.fn(),
       update: jest.fn(),
+      create: jest.fn(),
     },
     passwordResetToken: {
       deleteMany: jest.fn(),
@@ -49,6 +51,62 @@ describe('AuthService', () => {
         'If an account exists for that email, a reset token has been generated.',
     });
     expect(prismaMock.passwordResetToken.create).not.toHaveBeenCalled();
+  });
+
+  it('upgrades a legacy blank-password user during registration', async () => {
+    prismaMock.user.findUnique = jest.fn().mockResolvedValue({
+      id: 3,
+      passwordHash: '',
+    });
+    prismaMock.user.update = jest.fn().mockResolvedValue({
+      id: 3,
+      name: 'Alice',
+      email: 'alice@example.com',
+      createdAt: new Date('2026-03-25T12:00:00.000Z'),
+    });
+
+    const result = await service.register({
+      name: 'Alice',
+      email: 'alice@example.com',
+      password: 'password123',
+    });
+
+    expect(prismaMock.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 3 },
+        data: expect.objectContaining({
+          name: 'Alice',
+          passwordHash: expect.any(String),
+        }),
+      }),
+    );
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 3,
+        email: 'alice@example.com',
+      }),
+    );
+  });
+
+  it('maps concurrent registration unique-email failures to ConflictException', async () => {
+    prismaMock.user.findUnique = jest.fn().mockResolvedValue(null);
+    prismaMock.user.create = jest.fn().mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: 'test',
+        meta: {},
+      }),
+    );
+
+    await expect(
+      service.register({
+        name: 'Alice',
+        email: 'alice@example.com',
+        password: 'password123',
+      }),
+    ).rejects.toMatchObject({
+      message: 'An account with that email already exists',
+    });
   });
 
   it('returns a development reset token for known emails', async () => {
