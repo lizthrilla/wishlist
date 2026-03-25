@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
 import { FamiliesService } from './families.service';
@@ -129,6 +130,27 @@ describe('FamiliesService', () => {
       }),
     );
     expect(result.memberCount).toBe(2);
+  });
+
+  it('maps unique-constraint races on family join to ConflictException', async () => {
+    prismaMock.family.findUnique = jest.fn().mockResolvedValue({
+      id: 1,
+      name: 'Smith Family',
+      joinCode: 'ABCD1234',
+      creatorId: 7,
+      memberships: [],
+    });
+    prismaMock.familyMembership.create = jest.fn().mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+        code: 'P2002',
+        clientVersion: 'test',
+        meta: {},
+      }),
+    );
+
+    await expect(
+      service.joinFamily(9, { joinCode: 'ABCD1234' }),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('rejects duplicate family joins', async () => {
