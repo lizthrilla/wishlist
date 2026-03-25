@@ -7,10 +7,15 @@ import {
   Param,
   ParseIntPipe,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { CurrentUser } from '../auth/current-user.decorator';
+import { AuthGuard } from '../auth/auth.guard';
+import type { AuthenticatedUser } from '../auth/auth.types';
 import { WishlistItemsService } from './wishlist-items.service';
 
 @Controller('wishlist-items')
+@UseGuards(AuthGuard)
 export class WishlistItemsController {
   constructor(private readonly wishlistItemsService: WishlistItemsService) {}
 
@@ -42,7 +47,10 @@ export class WishlistItemsController {
 
   @Delete(':id')
   @HttpCode(204)
-  deleteWishlistItem(@Param('id', ParseIntPipe) id: number) {
-    return this.wishlistItemsService.deleteWishlistItem(id);
+  deleteWishlistItem(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.wishlistItemsService.deleteWishlistItem(id, user.id);
   }
 }

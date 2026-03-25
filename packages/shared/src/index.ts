@@ -27,3 +27,13 @@ export type PaginatedWishlistItems = {
   data: WishlistItemResponse[];
   meta: PaginationMeta;
 };
+
+export type AuthUser = {
+  id: number;
+  email: string;
+  name: string;
+};
+
+export type AuthResponse = {
+  user: AuthUser;
+};

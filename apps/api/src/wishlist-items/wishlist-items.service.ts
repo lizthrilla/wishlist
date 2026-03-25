@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -70,11 +74,40 @@ export class WishlistItemsService {
     };
   }
 
-  async deleteWishlistItem(id: number) {
+  async deleteWishlistItem(id: number, currentUserId: number) {
     try {
+      const item = await this.prisma.wishlistItem.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          wishlist: {
+            select: {
+              userId: true,
+            },
+          },
+        },
+      });
+
+      if (!item) {
+        throw new NotFoundException(`WishlistItem ${id} not found`);
+      }
+
+      if (item.wishlist.userId !== currentUserId) {
+        throw new ForbiddenException(
+          'You can only delete items from your own wishlist',
+        );
+      }
+
       await this.prisma.wishlistItem.delete({ where: { id } });
       return;
     } catch (err: any) {
+      if (
+        err instanceof NotFoundException ||
+        err instanceof ForbiddenException
+      ) {
+        throw err;
+      }
+
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
         err.code === 'P2025'

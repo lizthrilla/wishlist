@@ -11,6 +11,7 @@ describe('WishlistItemsService', () => {
     wishlistItem: {
       findMany: jest.fn(),
       count: jest.fn(),
+      findUnique: jest.fn(),
       delete: jest.fn(),
     },
   } as unknown as PrismaService;
@@ -130,8 +131,17 @@ describe('WishlistItemsService', () => {
   it('deletes a wishlist item successfully', async () => {
     prismaMock.wishlistItem.delete = jest.fn().mockResolvedValue(undefined);
 
-    await expect(service.deleteWishlistItem(5)).resolves.toBeUndefined();
+    prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue({
+      id: 5,
+      wishlist: { userId: 7 },
+    });
 
+    await expect(service.deleteWishlistItem(5, 7)).resolves.toBeUndefined();
+
+    expect(prismaMock.wishlistItem.findUnique).toHaveBeenCalledWith({
+      where: { id: 5 },
+      select: { id: true, wishlist: { select: { userId: true } } },
+    });
     expect(prismaMock.wishlistItem.delete).toHaveBeenCalledWith({
       where: { id: 5 },
     });
@@ -143,9 +153,13 @@ describe('WishlistItemsService', () => {
       clientVersion: 'test',
       meta: {},
     });
+    prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue({
+      id: 999,
+      wishlist: { userId: 7 },
+    });
     prismaMock.wishlistItem.delete = jest.fn().mockRejectedValue(prismaError);
 
-    await expect(service.deleteWishlistItem(999)).rejects.toBeInstanceOf(
+    await expect(service.deleteWishlistItem(999, 7)).rejects.toBeInstanceOf(
       NotFoundException,
     );
   });

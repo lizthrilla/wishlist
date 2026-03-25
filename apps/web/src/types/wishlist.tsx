@@ -6,6 +6,12 @@ import type {
 
 export type { WishlistItemResponse, PaginationMeta, PaginatedWishlistItems };
 
+export interface AuthUser {
+  id: number;
+  email: string;
+  name: string;
+}
+
 export interface CardProps extends WishlistItemResponse {
   onDelete: (id: number) => void;
 }

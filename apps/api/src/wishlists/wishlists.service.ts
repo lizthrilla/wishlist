@@ -1,17 +1,35 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateWishlistItemDto } from '../wishlist-items/dto/create-wishlist-item.dto';
 
 @Injectable()
 export class WishlistsService {
   constructor(private prisma: PrismaService) {}
-  async createWishlistItem(wishlistId: number, dto: CreateWishlistItemDto) {
+  async createWishlistItem(
+    wishlistId: number,
+    dto: CreateWishlistItemDto,
+    currentUserId: number,
+  ) {
     const wishlist = await this.prisma.wishlist.findUnique({
       where: { id: wishlistId },
+      select: {
+        id: true,
+        userId: true,
+      },
     });
 
     if (!wishlist) {
       throw new NotFoundException(`Wishlist ${wishlistId} not found`);
+    }
+
+    if (wishlist.userId !== currentUserId) {
+      throw new ForbiddenException(
+        'You can only add items to your own wishlist',
+      );
     }
 
     return this.prisma.wishlistItem.create({

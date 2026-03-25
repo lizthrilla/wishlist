@@ -5,7 +5,7 @@ interface UserSearchPropsType {
 }
 
 const UserSearch = ({ onChange, onSubmit, value }: UserSearchPropsType) => {
-  const handleSubmit = (e: React.ChangeEvent<HTMLFormElement>) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     onSubmit();
   };
