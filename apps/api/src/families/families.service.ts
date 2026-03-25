@@ -4,10 +4,27 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { createJoinCode } from '../auth/auth.utils';
 import { CreateFamilyDto } from './dto/create-family.dto';
 import { JoinFamilyDto } from './dto/join-family.dto';
+
+type FamilySummaryRecord = {
+  id: number;
+  name: string;
+  joinCode: string;
+  creatorId: number;
+  memberships: Array<{
+    user: {
+      id: number;
+      name: string;
+      email: string;
+    };
+  }>;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 @Injectable()
 export class FamiliesService {
@@ -138,41 +155,54 @@ export class FamiliesService {
       throw new ConflictException('You are already a member of this family');
     }
 
-    const membership = await this.prisma.familyMembership.create({
-      data: {
-        userId: currentUserId,
-        familyId: family.id,
-      },
-      include: {
-        family: {
-          include: {
-            memberships: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    email: true,
+    let membershipFamily: FamilySummaryRecord;
+    try {
+      const membership = await this.prisma.familyMembership.create({
+        data: {
+          userId: currentUserId,
+          familyId: family.id,
+        },
+        include: {
+          family: {
+            include: {
+              memberships: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                    },
                   },
                 },
               },
             },
           },
         },
-      },
-    });
+      });
+      membershipFamily = membership.family as FamilySummaryRecord;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('You are already a member of this family');
+      }
+
+      throw error;
+    }
 
     return {
-      id: membership.family.id,
-      name: membership.family.name,
-      joinCode: membership.family.joinCode,
-      creatorId: membership.family.creatorId,
-      memberCount: membership.family.memberships.length,
-      members: membership.family.memberships.map(
+      id: membershipFamily.id,
+      name: membershipFamily.name,
+      joinCode: membershipFamily.joinCode,
+      creatorId: membershipFamily.creatorId,
+      memberCount: membershipFamily.memberships.length,
+      members: membershipFamily.memberships.map(
         (familyMembership) => familyMembership.user,
       ),
-      createdAt: membership.family.createdAt,
-      updatedAt: membership.family.updatedAt,
+      createdAt: membershipFamily.createdAt,
+      updatedAt: membershipFamily.updatedAt,
     };
   }
 

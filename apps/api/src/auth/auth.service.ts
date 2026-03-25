@@ -133,70 +133,76 @@ export class AuthService {
     return {
       message:
         'If an account exists for that email, a reset token has been generated.',
-      ...(process.env.NODE_ENV !== 'production'
-        ? {
-            resetToken: rawToken,
-            expiresAt: resetToken.expiresAt,
-          }
-        : {}),
+      resetToken: rawToken,
+      expiresAt: resetToken.expiresAt,
     };
   }
 
   async resetPassword(dto: ResetPasswordDto) {
-    const passwordResetToken = await this.prisma.passwordResetToken.findUnique({
-      where: {
-        tokenHash: hashSessionToken(dto.token),
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-          },
-        },
-      },
-    });
-
-    if (
-      !passwordResetToken ||
-      passwordResetToken.usedAt ||
-      passwordResetToken.expiresAt <= new Date()
-    ) {
-      throw new BadRequestException('Reset token is invalid or expired');
-    }
-
+    const tokenHash = hashSessionToken(dto.token);
+    const now = new Date();
     const passwordHash = await hashPassword(dto.password);
 
-    await this.prisma.$transaction([
-      this.prisma.user.update({
+    await this.prisma.$transaction(async (tx) => {
+      const passwordResetToken = await tx.passwordResetToken.findFirst({
         where: {
-          id: passwordResetToken.user.id,
+          tokenHash,
+          usedAt: null,
+          expiresAt: {
+            gt: now,
+          },
+        },
+        select: {
+          id: true,
+          userId: true,
+        },
+      });
+
+      if (!passwordResetToken) {
+        throw new BadRequestException('Reset token is invalid or expired');
+      }
+
+      const consumeResult = await tx.passwordResetToken.updateMany({
+        where: {
+          id: passwordResetToken.id,
+          usedAt: null,
+          expiresAt: {
+            gt: now,
+          },
+        },
+        data: {
+          usedAt: now,
+        },
+      });
+
+      if (consumeResult.count !== 1) {
+        throw new BadRequestException('Reset token is invalid or expired');
+      }
+
+      await tx.user.update({
+        where: {
+          id: passwordResetToken.userId,
         },
         data: {
           passwordHash,
         },
-      }),
-      this.prisma.passwordResetToken.update({
+      });
+
+      await tx.passwordResetToken.deleteMany({
         where: {
-          id: passwordResetToken.id,
-        },
-        data: {
-          usedAt: new Date(),
-        },
-      }),
-      this.prisma.passwordResetToken.deleteMany({
-        where: {
-          userId: passwordResetToken.user.id,
+          userId: passwordResetToken.userId,
           id: {
             not: passwordResetToken.id,
           },
         },
-      }),
-      this.prisma.session.deleteMany({
+      });
+
+      await tx.session.deleteMany({
         where: {
-          userId: passwordResetToken.user.id,
+          userId: passwordResetToken.userId,
         },
-      }),
-    ]);
+      });
+    });
 
     return {
       message: 'Password reset successfully.',

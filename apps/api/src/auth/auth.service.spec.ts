@@ -16,7 +16,8 @@ describe('AuthService', () => {
       deleteMany: jest.fn(),
       create: jest.fn(),
       findUnique: jest.fn(),
-      update: jest.fn(),
+      findFirst: jest.fn(),
+      updateMany: jest.fn(),
     },
     session: {
       deleteMany: jest.fn(),
@@ -82,33 +83,53 @@ describe('AuthService', () => {
     );
   });
 
+  it('returns a reset token even in production so the flow remains usable', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    prismaMock.user.findUnique = jest.fn().mockResolvedValue({ id: 3 });
+    prismaMock.passwordResetToken.deleteMany = jest.fn().mockResolvedValue({
+      count: 0,
+    });
+    prismaMock.passwordResetToken.create = jest.fn().mockResolvedValue({
+      id: 1,
+      expiresAt: new Date('2026-03-25T12:00:00.000Z'),
+    });
+
+    try {
+      const result = await service.forgotPassword({
+        email: 'alice@example.com',
+      });
+
+      expect(result).toEqual(
+        expect.objectContaining({
+          resetToken: expect.any(String),
+          expiresAt: new Date('2026-03-25T12:00:00.000Z'),
+        }),
+      );
+    } finally {
+      process.env.NODE_ENV = originalNodeEnv;
+    }
+  });
+
   it('resets the password and invalidates sessions for a valid token', async () => {
     const token = 'raw-reset-token';
-    const existingToken = {
+    prismaMock.passwordResetToken.findFirst = jest.fn().mockResolvedValue({
       id: 10,
-      tokenHash: hashSessionToken(token),
-      usedAt: null,
-      expiresAt: new Date(Date.now() + 60_000),
-      user: {
-        id: 7,
-      },
-    };
-
-    prismaMock.passwordResetToken.findUnique = jest
-      .fn()
-      .mockResolvedValue(existingToken);
+      userId: 7,
+    });
     prismaMock.user.update = jest.fn().mockResolvedValue(undefined);
-    prismaMock.passwordResetToken.update = jest
+    prismaMock.passwordResetToken.updateMany = jest
       .fn()
-      .mockResolvedValue(undefined);
+      .mockResolvedValue({ count: 1 });
     prismaMock.passwordResetToken.deleteMany = jest.fn().mockResolvedValue({
       count: 0,
     });
     prismaMock.session.deleteMany = jest.fn().mockResolvedValue({ count: 3 });
     prismaMock.$transaction = jest
       .fn()
-      .mockImplementation(async (operations: Promise<unknown>[]) =>
-        Promise.all(operations),
+      .mockImplementation(
+        async (callback: (tx: typeof prismaMock) => Promise<unknown>) =>
+          callback(prismaMock),
       );
 
     const result = await service.resetPassword({
@@ -116,18 +137,31 @@ describe('AuthService', () => {
       password: 'new-password-123',
     });
 
-    expect(prismaMock.passwordResetToken.findUnique).toHaveBeenCalledWith({
-      where: {
-        tokenHash: hashSessionToken(token),
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
+    expect(prismaMock.passwordResetToken.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          tokenHash: hashSessionToken(token),
+          usedAt: null,
+          expiresAt: {
+            gt: expect.any(Date),
           },
         },
-      },
-    });
+      }),
+    );
+    expect(prismaMock.passwordResetToken.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: 10,
+          usedAt: null,
+          expiresAt: {
+            gt: expect.any(Date),
+          },
+        },
+        data: {
+          usedAt: expect.any(Date),
+        },
+      }),
+    );
     expect(prismaMock.$transaction).toHaveBeenCalled();
     expect(result).toEqual({
       message: 'Password reset successfully.',
@@ -135,9 +169,36 @@ describe('AuthService', () => {
   });
 
   it('rejects an expired or invalid reset token', async () => {
-    prismaMock.passwordResetToken.findUnique = jest
+    prismaMock.passwordResetToken.findFirst = jest.fn().mockResolvedValue(null);
+    prismaMock.$transaction = jest
       .fn()
-      .mockResolvedValue(null);
+      .mockImplementation(
+        async (callback: (tx: typeof prismaMock) => Promise<unknown>) =>
+          callback(prismaMock),
+      );
+
+    await expect(
+      service.resetPassword({
+        token: 'bad-token',
+        password: 'new-password-123',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects a reset token that loses the atomic consume race', async () => {
+    prismaMock.passwordResetToken.findFirst = jest.fn().mockResolvedValue({
+      id: 10,
+      userId: 7,
+    });
+    prismaMock.passwordResetToken.updateMany = jest
+      .fn()
+      .mockResolvedValue({ count: 0 });
+    prismaMock.$transaction = jest
+      .fn()
+      .mockImplementation(
+        async (callback: (tx: typeof prismaMock) => Promise<unknown>) =>
+          callback(prismaMock),
+      );
 
     await expect(
       service.resetPassword({
