@@ -21,7 +21,11 @@ export async function getWishlistItems(
   });
 
   if (!response.ok) {
-    throw new Error('Failed to fetch wishlist items');
+    const data = (await response.json().catch(() => null)) as {
+      message?: string;
+      error?: string;
+    } | null;
+    throw new Error(data?.message ?? data?.error ?? 'Failed to fetch wishlist items');
   }
   return response.json() as Promise<PaginatedWishlistItems>;
 }
@@ -33,6 +37,10 @@ export async function deleteWishListItem(itemId: number) {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to delete itemId: ${itemId}`);
+    const data = (await response.json().catch(() => null)) as {
+      message?: string;
+      error?: string;
+    } | null;
+    throw new Error(data?.message ?? data?.error ?? `Failed to delete itemId: ${itemId}`);
   }
 }

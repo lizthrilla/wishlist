@@ -8,7 +8,7 @@ type AuthPayload = {
   name?: string;
 };
 
-async function apiRequest<T>(path: string, init?: RequestInit) {
+export async function apiRequest<T>(path: string, init?: RequestInit) {
   const response = await fetch(`${BASE_URL}${path}`, {
     credentials: 'include',
     headers: {
@@ -59,3 +59,27 @@ export function logout() {
 type AuthResponse = {
   user: AuthUser;
 };
+
+export type ForgotPasswordResponse = {
+  message: string;
+  resetToken?: string;
+  expiresAt?: string;
+};
+
+export type ResetPasswordResponse = {
+  message: string;
+};
+
+export function forgotPassword(email: string) {
+  return apiRequest<ForgotPasswordResponse>('/api/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export function resetPassword(payload: { token: string; password: string }) {
+  return apiRequest<ResetPasswordResponse>('/api/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}

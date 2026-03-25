@@ -22,6 +22,7 @@ export class WishlistItemsController {
   /// `api/wishlist-items/` if i put something in @Get it adds that to make it `/api/wishlist-items/wishlist/items
   @Get()
   getWishlistItems(
+    @CurrentUser() user: AuthenticatedUser,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('userId') userId?: string,
@@ -39,6 +40,7 @@ export class WishlistItemsController {
     }
 
     return this.wishlistItemsService.getWishlistItems(
+      user.id,
       pageNum,
       limitNum,
       userIdNum,
