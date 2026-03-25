@@ -1,13 +1,21 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { PrismaClient } from '@prisma/client';
+import { randomBytes, scryptSync } from 'node:crypto';
 
 const prisma = new PrismaClient();
+
+function hashPassword(password: string) {
+  const salt = randomBytes(16).toString('hex');
+  const hash = scryptSync(password, salt, 64).toString('hex');
+  return `${salt}:${hash}`;
+}
 
 async function main() {
   const user1 = await prisma.user.create({
     data: {
       name: 'Alice',
       email: 'alice@example.com',
+      passwordHash: hashPassword('password123'),
       wishlists: {
         create: {
           title: 'Birthday Wishlist',
@@ -27,6 +35,7 @@ async function main() {
     data: {
       name: 'Bob',
       email: 'bob@example.com',
+      passwordHash: hashPassword('password123'),
       wishlists: {
         create: {
           title: 'Holiday Wishlist',

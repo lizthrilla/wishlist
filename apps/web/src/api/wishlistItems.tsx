@@ -16,7 +16,9 @@ export async function getWishlistItems(
     params.append(`userId`, String(userId));
   }
 
-  const response = await fetch(`${BASE_URL}/api/wishlist-items?${params.toString()}`);
+  const response = await fetch(`${BASE_URL}/api/wishlist-items?${params.toString()}`, {
+    credentials: 'include',
+  });
 
   if (!response.ok) {
     throw new Error('Failed to fetch wishlist items');
@@ -25,7 +27,10 @@ export async function getWishlistItems(
 }
 
 export async function deleteWishListItem(itemId: number) {
-  const response = await fetch(`${BASE_URL}/api/wishlist-items/${itemId}`, { method: 'DELETE' });
+  const response = await fetch(`${BASE_URL}/api/wishlist-items/${itemId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
 
   if (!response.ok) {
     throw new Error(`Failed to delete itemId: ${itemId}`);

@@ -28,15 +28,18 @@ describe('WishlistsService', () => {
   });
 
   it('creates a wishlist item when the wishlist exists', async () => {
-    prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue({ id: 1 });
+    prismaMock.wishlist.findUnique = jest
+      .fn()
+      .mockResolvedValue({ id: 1, userId: 3 });
     const createdItem = { id: 10, name: 'Book', wishlistId: 1 };
     prismaMock.wishlistItem.create = jest.fn().mockResolvedValue(createdItem);
 
     const dto = { name: 'Book', url: 'https://example.com', price: 25 };
-    const result = await service.createWishlistItem(1, dto);
+    const result = await service.createWishlistItem(1, dto, 3);
 
     expect(prismaMock.wishlist.findUnique).toHaveBeenCalledWith({
       where: { id: 1 },
+      select: { id: true, userId: true },
     });
     expect(prismaMock.wishlistItem.create).toHaveBeenCalledWith({
       data: {
@@ -51,11 +54,13 @@ describe('WishlistsService', () => {
   });
 
   it('trims the name before creating the item', async () => {
-    prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue({ id: 2 });
+    prismaMock.wishlist.findUnique = jest
+      .fn()
+      .mockResolvedValue({ id: 2, userId: 8 });
     prismaMock.wishlistItem.create = jest.fn().mockResolvedValue({ id: 11 });
 
     const dto = { name: '   New Shoes   ' };
-    await service.createWishlistItem(2, dto);
+    await service.createWishlistItem(2, dto, 8);
 
     expect(prismaMock.wishlistItem.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -68,7 +73,7 @@ describe('WishlistsService', () => {
     prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue(null);
 
     await expect(
-      service.createWishlistItem(99, { name: 'Gift' }),
+      service.createWishlistItem(99, { name: 'Gift' }, 3),
     ).rejects.toBeInstanceOf(NotFoundException);
 
     expect(prismaMock.wishlistItem.create).not.toHaveBeenCalled();

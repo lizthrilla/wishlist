@@ -24,9 +24,16 @@ const Card = (item: CardProps) => {
 
         <div className="flex items-center justify-between pt-4 border-t border-gray-100">
           <span className="text-sm text-gray-500">Price</span>
-          <span className="text-xl font-bold text-gray-900">{item.price}</span>
+          <span className="text-xl font-bold text-gray-900">
+            {item.price == null ? 'N/A' : `$${item.price}`}
+          </span>
         </div>
-        <button onClick={() => handleClick(item.id)}>Delete</button>
+        <button
+          className="self-end rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+          onClick={() => handleClick(item.id)}
+        >
+          Delete
+        </button>
       </div>
     </div>
   );
