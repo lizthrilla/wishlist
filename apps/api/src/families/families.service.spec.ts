@@ -4,7 +4,6 @@ import {
   ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
 import { FamiliesService } from './families.service';
@@ -50,7 +49,6 @@ describe('FamiliesService', () => {
     prismaMock.family.create = jest.fn().mockResolvedValue({
       id: 1,
       name: 'Smith Family',
-      joinCode: 'ABCD1234',
       creatorId: 7,
       createdAt: new Date('2026-03-25T10:00:00.000Z'),
       updatedAt: new Date('2026-03-25T10:00:00.000Z'),
@@ -91,7 +89,6 @@ describe('FamiliesService', () => {
         family: {
           id: 1,
           name: 'Smith Family',
-          joinCode: 'ABCD1234',
           creatorId: 7,
           createdAt: new Date('2026-03-25T10:00:00.000Z'),
           updatedAt: new Date('2026-03-25T10:00:00.000Z'),
@@ -121,7 +118,6 @@ describe('FamiliesService', () => {
       family: {
         id: 1,
         name: 'Smith Family',
-        joinCode: 'ABCD1234',
         creatorId: 7,
         createdAt: new Date('2026-03-25T10:00:00.000Z'),
         updatedAt: new Date('2026-03-25T10:00:00.000Z'),
@@ -164,7 +160,6 @@ describe('FamiliesService', () => {
       family: {
         id: 1,
         name: 'Smith Family',
-        joinCode: 'ABCD1234',
         creatorId: 7,
         createdAt: new Date('2026-03-25T10:00:00.000Z'),
         updatedAt: new Date('2026-03-25T10:00:00.000Z'),
@@ -198,7 +193,6 @@ describe('FamiliesService', () => {
     prismaMock.family.findUnique = jest.fn().mockResolvedValue({
       id: 1,
       name: 'Smith Family',
-      joinCode: 'ABCD1234',
       creatorId: 7,
       createdAt: new Date('2026-03-25T10:00:00.000Z'),
       updatedAt: new Date('2026-03-25T10:00:00.000Z'),
@@ -282,7 +276,6 @@ describe('FamiliesService', () => {
       family: {
         id: 1,
         name: 'Smith Family',
-        joinCode: 'ABCD1234',
         creatorId: 7,
         createdAt: new Date('2026-03-25T10:00:00.000Z'),
         updatedAt: new Date('2026-03-25T10:00:00.000Z'),
@@ -296,32 +289,6 @@ describe('FamiliesService', () => {
     await expect(service.revokeInvite(7, 5)).resolves.toEqual({
       success: true,
     });
-  });
-
-  it('maps unique-constraint races on family join to ConflictException', async () => {
-    prismaMock.family.findUnique = jest
-      .fn()
-      .mockResolvedValueOnce({
-        id: 1,
-        name: 'Smith Family',
-        joinCode: 'ABCD1234',
-        creatorId: 7,
-        createdAt: new Date('2026-03-25T10:00:00.000Z'),
-        updatedAt: new Date('2026-03-25T10:00:00.000Z'),
-        memberships: [],
-      })
-      .mockResolvedValueOnce(null);
-    prismaMock.familyMembership.create = jest.fn().mockRejectedValue(
-      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
-        code: 'P2002',
-        clientVersion: 'test',
-        meta: {},
-      }),
-    );
-
-    await expect(
-      service.joinFamily(9, { joinCode: 'ABCD1234' }),
-    ).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('requires a shared family for cross-user wishlist reads', async () => {

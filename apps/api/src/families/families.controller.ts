@@ -13,7 +13,6 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { AcceptFamilyInviteDto } from './dto/accept-family-invite.dto';
 import { CreateFamilyDto } from './dto/create-family.dto';
-import { JoinFamilyDto } from './dto/join-family.dto';
 import { FamiliesService } from './families.service';
 
 @Controller('families')
@@ -32,14 +31,6 @@ export class FamiliesController {
     @Body() dto: CreateFamilyDto,
   ) {
     return this.familiesService.createFamily(user.id, dto);
-  }
-
-  @Post('join')
-  joinFamily(
-    @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: JoinFamilyDto,
-  ) {
-    return this.familiesService.joinFamily(user.id, dto);
   }
 
   @Get(':familyId/invites')

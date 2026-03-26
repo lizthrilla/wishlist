@@ -14,7 +14,6 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { AcceptFamilyInviteDto } from './dto/accept-family-invite.dto';
 import { CreateFamilyDto } from './dto/create-family.dto';
-import { JoinFamilyDto } from './dto/join-family.dto';
 
 const FAMILY_MEMBER_SELECT = {
   id: true,
@@ -71,7 +70,6 @@ export class FamiliesService {
     return {
       id: family.id,
       name: family.name,
-      joinCode: family.joinCode,
       creatorId: family.creatorId,
       currentUserRole: currentMembership.role,
       memberCount: family.memberships.length,
@@ -183,55 +181,6 @@ export class FamiliesService {
     });
 
     return this.mapFamilySummary(family, currentUserId);
-  }
-
-  async joinFamily(currentUserId: number, dto: JoinFamilyDto) {
-    const joinCode = dto.joinCode.trim().toUpperCase();
-    const family = await this.prisma.family.findUnique({
-      where: { joinCode },
-      include: FAMILY_INCLUDE,
-    });
-
-    if (!family) {
-      throw new NotFoundException('Family not found');
-    }
-
-    const existingMembership = family.memberships.find(
-      (membership) => membership.userId === currentUserId,
-    );
-    if (existingMembership) {
-      throw new ConflictException('You are already a member of this family');
-    }
-
-    try {
-      await this.prisma.familyMembership.create({
-        data: {
-          userId: currentUserId,
-          familyId: family.id,
-          role: 'member',
-        },
-      });
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException('You are already a member of this family');
-      }
-
-      throw error;
-    }
-
-    const updatedFamily = await this.prisma.family.findUnique({
-      where: { id: family.id },
-      include: FAMILY_INCLUDE,
-    });
-
-    if (!updatedFamily) {
-      throw new NotFoundException('Family not found');
-    }
-
-    return this.mapFamilySummary(updatedFamily, currentUserId);
   }
 
   async listInvites(currentUserId: number, familyId: number) {

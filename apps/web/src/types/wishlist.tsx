@@ -23,7 +23,6 @@ export type FamilyRole = 'admin' | 'member';
 export interface FamilySummary {
   id: number;
   name: string;
-  joinCode: string;
   creatorId: number;
   currentUserRole: FamilyRole;
   memberCount: number;

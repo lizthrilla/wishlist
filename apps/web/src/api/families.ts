@@ -12,13 +12,6 @@ export function createFamily(name: string) {
   });
 }
 
-export function joinFamily(joinCode: string) {
-  return apiRequest<FamilySummary>('/api/families/join', {
-    method: 'POST',
-    body: JSON.stringify({ joinCode }),
-  });
-}
-
 export function getFamilyInvites(familyId: number) {
   return apiRequest<FamilyInviteSummary[]>(`/api/families/${familyId}/invites`);
 }
