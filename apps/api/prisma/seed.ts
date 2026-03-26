@@ -56,7 +56,10 @@ async function main() {
       joinCode: 'FAMILY1',
       creatorId: user1.id,
       memberships: {
-        create: [{ userId: user1.id }, { userId: user2.id }],
+        create: [
+          { userId: user1.id, role: 'admin' },
+          { userId: user2.id, role: 'member' },
+        ],
       },
     },
   });

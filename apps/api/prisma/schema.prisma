@@ -19,6 +19,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   memberships         FamilyMembership[]
   createdFamilies     Family[]             @relation("FamilyCreator")
+  createdFamilyInvites FamilyInvite[]      @relation("FamilyInviteCreator")
   wishlists           Wishlist[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
@@ -50,6 +51,7 @@ model Family {
   creator     User               @relation("FamilyCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   creatorId   Int
   memberships FamilyMembership[]
+  invites     FamilyInvite[]
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 }
@@ -60,9 +62,24 @@ model FamilyMembership {
   userId    Int
   family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
   familyId  Int
+  role      String   @default("member")
   createdAt DateTime @default(now())
 
   @@unique([userId, familyId])
+}
+
+model FamilyInvite {
+  id              Int      @id @default(autoincrement())
+  tokenHash       String   @unique
+  family          Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  familyId        Int
+  createdByUser   User     @relation("FamilyInviteCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  createdByUserId Int
+  expiresAt       DateTime
+  usedAt          DateTime?
+  revokedAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model Wishlist {

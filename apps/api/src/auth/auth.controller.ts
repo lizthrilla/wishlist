@@ -6,14 +6,10 @@ import {
   Post,
   Req,
   Res,
-  UseGuards,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { AUTH_COOKIE_NAME, SESSION_DURATION_MS } from './auth.constants';
-import { CurrentUser } from './current-user.decorator';
-import { AuthGuard } from './auth.guard';
-import type { AuthenticatedUser } from './auth.types';
 import { parseCookieHeader } from './auth.utils';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
@@ -77,8 +73,9 @@ export class AuthController {
   }
 
   @Get('me')
-  @UseGuards(AuthGuard)
-  getMe(@CurrentUser() user: AuthenticatedUser) {
+  async getMe(@Req() request: Request) {
+    const token = parseCookieHeader(request.headers.cookie)[AUTH_COOKIE_NAME];
+    const user = await this.authService.getCurrentUser(token);
     return { user };
   }
 }

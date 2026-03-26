@@ -1,4 +1,4 @@
-import type { FamilySummary } from '../types/wishlist';
+import type { CreatedFamilyInvite, FamilyInviteSummary, FamilySummary } from '../types/wishlist';
 import { apiRequest } from './auth';
 
 export function getFamilies() {
@@ -16,5 +16,28 @@ export function joinFamily(joinCode: string) {
   return apiRequest<FamilySummary>('/api/families/join', {
     method: 'POST',
     body: JSON.stringify({ joinCode }),
+  });
+}
+
+export function getFamilyInvites(familyId: number) {
+  return apiRequest<FamilyInviteSummary[]>(`/api/families/${familyId}/invites`);
+}
+
+export function createFamilyInvite(familyId: number) {
+  return apiRequest<CreatedFamilyInvite>(`/api/families/${familyId}/invites`, {
+    method: 'POST',
+  });
+}
+
+export function acceptFamilyInvite(token: string) {
+  return apiRequest<FamilySummary>('/api/families/invites/accept', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  });
+}
+
+export function revokeFamilyInvite(inviteId: number) {
+  return apiRequest<{ success: boolean }>(`/api/families/invites/${inviteId}/revoke`, {
+    method: 'POST',
   });
 }

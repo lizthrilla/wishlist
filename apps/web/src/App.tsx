@@ -2,11 +2,19 @@ import { useCallback, useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import './App.css';
 import { forgotPassword, getCurrentUser, login, logout, register, resetPassword } from './api/auth';
-import { createFamily, getFamilies, joinFamily } from './api/families';
+import {
+  acceptFamilyInvite,
+  createFamily,
+  createFamilyInvite,
+  getFamilies,
+  getFamilyInvites,
+  revokeFamilyInvite,
+} from './api/families';
 import { deleteWishListItem, getWishlistItems } from './api/wishlistItems';
 import { Card, DropDown, PaginationButtons, UserSearch } from './components/index';
 import type {
   AuthUser,
+  FamilyInviteSummary,
   FamilySummary,
   PaginationMeta,
   WishlistItemResponse,
@@ -42,13 +50,31 @@ function App() {
   const [meta, setMeta] = useState<PaginationMeta>();
   const [limit, setLimit] = useState(DEFAULT_LIMIT);
   const [families, setFamilies] = useState<FamilySummary[]>([]);
+  const [familyInvites, setFamilyInvites] = useState<Record<number, FamilyInviteSummary[]>>({});
+  const [latestInviteLinks, setLatestInviteLinks] = useState<Record<number, string>>({});
   const [familyLoading, setFamilyLoading] = useState(false);
   const [familyError, setFamilyError] = useState<string | null>(null);
   const [familyNotice, setFamilyNotice] = useState<string | null>(null);
   const [familyForm, setFamilyForm] = useState({
     createName: '',
-    joinCode: '',
   });
+  const [pendingInviteToken, setPendingInviteToken] = useState<string | null>(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    return new URLSearchParams(window.location.search).get('inviteToken');
+  });
+  const [inviteAcceptanceLoading, setInviteAcceptanceLoading] = useState(false);
+  const [inviteActionFamilyId, setInviteActionFamilyId] = useState<number | null>(null);
+
+  const clearInviteTokenFromUrl = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.history.replaceState({}, '', window.location.pathname);
+  }, []);
 
   const bootstrapUser = useCallback(async () => {
     setAuthLoading(true);
@@ -63,9 +89,28 @@ function App() {
     }
   }, []);
 
+  const fetchFamilyInvites = useCallback(async (familyList: FamilySummary[]) => {
+    const adminFamilies = familyList.filter((family) => family.currentUserRole === 'admin');
+
+    if (adminFamilies.length === 0) {
+      setFamilyInvites({});
+      return;
+    }
+
+    const entries = await Promise.all(
+      adminFamilies.map(async (family) => {
+        const invites = await getFamilyInvites(family.id);
+        return [family.id, invites] as const;
+      }),
+    );
+
+    setFamilyInvites(Object.fromEntries(entries));
+  }, []);
+
   const fetchFamilies = useCallback(async () => {
     if (!currentUser) {
       setFamilies([]);
+      setFamilyInvites({});
       return;
     }
 
@@ -73,13 +118,14 @@ function App() {
     try {
       const response = await getFamilies();
       setFamilies(response);
+      await fetchFamilyInvites(response);
       setFamilyError(null);
     } catch (err) {
       setFamilyError(err instanceof Error ? err.message : 'Failed to load families');
     } finally {
       setFamilyLoading(false);
     }
-  }, [currentUser]);
+  }, [currentUser, fetchFamilyInvites]);
 
   const fetchData = useCallback(async () => {
     if (!currentUser) {
@@ -113,6 +159,51 @@ function App() {
     void fetchData();
     void fetchFamilies();
   }, [currentUser, fetchData, fetchFamilies]);
+
+  useEffect(() => {
+    if (!pendingInviteToken) {
+      return;
+    }
+
+    if (!currentUser) {
+      setAuthNotice('Sign in to accept your family invite link.');
+      setAuthMode('login');
+      return;
+    }
+
+    if (inviteAcceptanceLoading) {
+      return;
+    }
+
+    const acceptInvite = async () => {
+      setInviteAcceptanceLoading(true);
+      setFamilyError(null);
+
+      try {
+        const family = await acceptFamilyInvite(pendingInviteToken);
+        setFamilyNotice(`You joined ${family.name}.`);
+        clearInviteTokenFromUrl();
+        setPendingInviteToken(null);
+        await fetchFamilies();
+        await fetchData();
+      } catch (err) {
+        setFamilyError(err instanceof Error ? err.message : 'Failed to accept family invite');
+        clearInviteTokenFromUrl();
+        setPendingInviteToken(null);
+      } finally {
+        setInviteAcceptanceLoading(false);
+      }
+    };
+
+    void acceptInvite();
+  }, [
+    clearInviteTokenFromUrl,
+    currentUser,
+    fetchData,
+    fetchFamilies,
+    inviteAcceptanceLoading,
+    pendingInviteToken,
+  ]);
 
   const handleBackPage = () => {
     setCurrentPage((page) => Math.max(1, page - 1));
@@ -252,6 +343,8 @@ function App() {
       setWishlistItems([]);
       setMeta(undefined);
       setFamilies([]);
+      setFamilyInvites({});
+      setLatestInviteLinks({});
       setError(null);
       setAuthError(null);
       setAuthNotice(null);
@@ -268,27 +361,66 @@ function App() {
     try {
       const family = await createFamily(familyForm.createName.trim());
       setFamilies((current) => [...current, family]);
-      setFamilyForm((current) => ({ ...current, createName: '' }));
-      setFamilyNotice(`Created ${family.name}. Share code ${family.joinCode} with relatives.`);
+      setFamilyForm({ createName: '' });
+      setFamilyNotice(`Created ${family.name}.`);
+      await fetchFamilies();
       await fetchData();
     } catch (err) {
       setFamilyError(err instanceof Error ? err.message : 'Failed to create family');
     }
   };
 
-  const handleJoinFamily = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleCreateInvite = async (familyId: number) => {
     setFamilyError(null);
     setFamilyNotice(null);
+    setInviteActionFamilyId(familyId);
 
     try {
-      const family = await joinFamily(familyForm.joinCode.trim());
-      setFamilies((current) => [...current, family]);
-      setFamilyForm((current) => ({ ...current, joinCode: '' }));
-      setFamilyNotice(`Joined ${family.name}. You can now view shared family wishlists.`);
-      await fetchData();
+      const invite = await createFamilyInvite(familyId);
+      setLatestInviteLinks((current) => ({
+        ...current,
+        [familyId]: invite.inviteUrl,
+      }));
+      setFamilyInvites((current) => ({
+        ...current,
+        [familyId]: [
+          {
+            id: invite.id,
+            familyId: invite.familyId,
+            createdByUser: invite.createdByUser,
+            expiresAt: invite.expiresAt,
+            usedAt: invite.usedAt,
+            revokedAt: invite.revokedAt,
+            createdAt: invite.createdAt,
+            updatedAt: invite.updatedAt,
+          },
+          ...(current[familyId] ?? []),
+        ],
+      }));
+      setFamilyNotice('Invite link created. Share the link below.');
     } catch (err) {
-      setFamilyError(err instanceof Error ? err.message : 'Failed to join family');
+      setFamilyError(err instanceof Error ? err.message : 'Failed to create invite link');
+    } finally {
+      setInviteActionFamilyId(null);
+    }
+  };
+
+  const handleRevokeInvite = async (familyId: number, inviteId: number) => {
+    setFamilyError(null);
+    setFamilyNotice(null);
+    setInviteActionFamilyId(familyId);
+
+    try {
+      await revokeFamilyInvite(inviteId);
+      setFamilyInvites((current) => ({
+        ...current,
+        [familyId]: (current[familyId] ?? []).filter((invite) => invite.id !== inviteId),
+      }));
+      setFamilyNotice('Invite revoked.');
+    } catch (err) {
+      setFamilyError(err instanceof Error ? err.message : 'Failed to revoke invite');
+    } finally {
+      setInviteActionFamilyId(null);
     }
   };
 
@@ -463,9 +595,9 @@ function App() {
                 Wishlist visibility is limited to people who share at least one family with you.
               </p>
             </div>
-            {familyLoading && <span className="pill">Refreshing</span>}
+            {(familyLoading || inviteAcceptanceLoading) && <span className="pill">Refreshing</span>}
           </div>
-          <div className="family-forms">
+          <div className="family-forms family-forms-single">
             <form className="stacked-form" onSubmit={(event) => void handleCreateFamily(event)}>
               <label htmlFor="create-family-name">Create family</label>
               <input
@@ -484,24 +616,6 @@ function App() {
                 Create family
               </button>
             </form>
-            <form className="stacked-form" onSubmit={(event) => void handleJoinFamily(event)}>
-              <label htmlFor="join-family-code">Join family</label>
-              <input
-                id="join-family-code"
-                type="text"
-                placeholder="Invite code"
-                value={familyForm.joinCode}
-                onChange={(event) =>
-                  setFamilyForm((current) => ({
-                    ...current,
-                    joinCode: event.target.value.toUpperCase(),
-                  }))
-                }
-              />
-              <button type="submit" className="secondary-action">
-                Join with code
-              </button>
-            </form>
           </div>
           {familyError && <p className="form-error">{familyError}</p>}
           {familyNotice && <p className="form-notice">{familyNotice}</p>}
@@ -509,7 +623,7 @@ function App() {
             {families.length === 0 ? (
               <div className="empty-state">
                 <h3>No families yet</h3>
-                <p>Create one or join one to see other people’s wishlists.</p>
+                <p>Create one to start sharing invite links with relatives.</p>
               </div>
             ) : (
               families.map((family) => (
@@ -517,9 +631,11 @@ function App() {
                   <div className="family-card-header">
                     <div>
                       <h3>{family.name}</h3>
-                      <p className="subtle">Invite code: {family.joinCode}</p>
+                      <div className="family-card-meta">
+                        <span className="pill">{family.memberCount} members</span>
+                        <span className="role-pill">{family.currentUserRole}</span>
+                      </div>
                     </div>
-                    <span className="pill">{family.memberCount} members</span>
                   </div>
                   <ul className="family-members">
                     {family.members.map((member) => (
@@ -529,6 +645,52 @@ function App() {
                       </li>
                     ))}
                   </ul>
+                  {family.currentUserRole === 'admin' && (
+                    <div className="invite-panel">
+                      <div className="invite-panel-header">
+                        <h4>Invite links</h4>
+                        <button
+                          className="secondary-action"
+                          onClick={() => void handleCreateInvite(family.id)}
+                        >
+                          {inviteActionFamilyId === family.id ? 'Working...' : 'Create invite link'}
+                        </button>
+                      </div>
+                      {latestInviteLinks[family.id] && (
+                        <div className="invite-link-card">
+                          <label htmlFor={`invite-link-${family.id}`}>Latest invite link</label>
+                          <input
+                            id={`invite-link-${family.id}`}
+                            type="text"
+                            readOnly
+                            value={latestInviteLinks[family.id]}
+                          />
+                        </div>
+                      )}
+                      {(familyInvites[family.id] ?? []).length === 0 ? (
+                        <p className="subtle">No active invites.</p>
+                      ) : (
+                        <ul className="invite-list">
+                          {(familyInvites[family.id] ?? []).map((invite) => (
+                            <li key={invite.id}>
+                              <div>
+                                <strong>
+                                  Expires {new Date(invite.expiresAt).toLocaleString()}
+                                </strong>
+                                <p className="subtle">Created by {invite.createdByUser.name}</p>
+                              </div>
+                              <button
+                                className="secondary-action"
+                                onClick={() => void handleRevokeInvite(family.id, invite.id)}
+                              >
+                                Revoke
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
                 </article>
               ))
             )}

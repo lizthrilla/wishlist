@@ -39,6 +39,10 @@ export function createResetToken() {
   return randomBytes(32).toString('hex');
 }
 
+export function createInviteToken() {
+  return randomBytes(32).toString('hex');
+}
+
 export function createJoinCode() {
   return randomBytes(4).toString('hex').toUpperCase();
 }
