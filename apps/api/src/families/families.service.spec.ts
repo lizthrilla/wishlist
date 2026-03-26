@@ -1,10 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/unbound-method */
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
-  NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
 import { FamiliesService } from './families.service';
@@ -16,11 +15,21 @@ describe('FamiliesService', () => {
       findUnique: jest.fn(),
       create: jest.fn(),
     },
+    familyInvite: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      updateMany: jest.fn(),
+      update: jest.fn(),
+    },
     familyMembership: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
       create: jest.fn(),
     },
+    $transaction: jest.fn(),
   } as unknown as PrismaService;
 
   beforeEach(async () => {
@@ -35,17 +44,18 @@ describe('FamiliesService', () => {
     jest.clearAllMocks();
   });
 
-  it('creates a family and adds the creator as a member', async () => {
+  it('creates a family and adds the creator as an admin', async () => {
     prismaMock.family.findUnique = jest.fn().mockResolvedValue(null);
     prismaMock.family.create = jest.fn().mockResolvedValue({
       id: 1,
       name: 'Smith Family',
-      joinCode: 'ABCD1234',
       creatorId: 7,
       createdAt: new Date('2026-03-25T10:00:00.000Z'),
       updatedAt: new Date('2026-03-25T10:00:00.000Z'),
       memberships: [
         {
+          userId: 7,
+          role: 'admin',
           user: {
             id: 7,
             name: 'Alice',
@@ -61,123 +71,224 @@ describe('FamiliesService', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           creatorId: 7,
-          name: 'Smith Family',
           memberships: {
             create: {
               userId: 7,
+              role: 'admin',
             },
           },
         }),
       }),
     );
-    expect(result.memberCount).toBe(1);
+    expect(result.currentUserRole).toBe('admin');
   });
 
-  it('joins a family by join code', async () => {
-    prismaMock.family.findUnique = jest.fn().mockResolvedValue({
-      id: 1,
-      name: 'Smith Family',
-      joinCode: 'ABCD1234',
-      creatorId: 7,
-      memberships: [
-        {
-          userId: 7,
-          user: {
-            id: 7,
-            name: 'Alice',
-            email: 'alice@example.com',
-          },
+  it('returns the caller role in family summaries', async () => {
+    prismaMock.familyMembership.findMany = jest.fn().mockResolvedValue([
+      {
+        family: {
+          id: 1,
+          name: 'Smith Family',
+          creatorId: 7,
+          createdAt: new Date('2026-03-25T10:00:00.000Z'),
+          updatedAt: new Date('2026-03-25T10:00:00.000Z'),
+          memberships: [
+            {
+              userId: 7,
+              role: 'admin',
+              user: {
+                id: 7,
+                name: 'Alice',
+                email: 'alice@example.com',
+              },
+            },
+          ],
         },
-      ],
-    });
-    prismaMock.familyMembership.create = jest.fn().mockResolvedValue({
+      },
+    ]);
+
+    const result = await service.listFamilies(7);
+
+    expect(result[0]?.currentUserRole).toBe('admin');
+  });
+
+  it('creates invite links for admins', async () => {
+    prismaMock.familyMembership.findUnique = jest.fn().mockResolvedValue({
+      role: 'admin',
       family: {
         id: 1,
         name: 'Smith Family',
-        joinCode: 'ABCD1234',
         creatorId: 7,
         createdAt: new Date('2026-03-25T10:00:00.000Z'),
-        updatedAt: new Date('2026-03-25T10:05:00.000Z'),
+        updatedAt: new Date('2026-03-25T10:00:00.000Z'),
         memberships: [
           {
+            userId: 7,
+            role: 'admin',
             user: {
               id: 7,
               name: 'Alice',
               email: 'alice@example.com',
             },
           },
-          {
-            user: {
-              id: 9,
-              name: 'Bob',
-              email: 'bob@example.com',
-            },
-          },
         ],
       },
     });
-
-    const result = await service.joinFamily(9, { joinCode: 'abcd1234' });
-
-    expect(prismaMock.family.findUnique).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { joinCode: 'ABCD1234' },
-      }),
-    );
-    expect(prismaMock.familyMembership.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: { userId: 9, familyId: 1 },
-      }),
-    );
-    expect(result.memberCount).toBe(2);
-  });
-
-  it('maps unique-constraint races on family join to ConflictException', async () => {
-    prismaMock.family.findUnique = jest.fn().mockResolvedValue({
-      id: 1,
-      name: 'Smith Family',
-      joinCode: 'ABCD1234',
-      creatorId: 7,
-      memberships: [],
+    prismaMock.familyInvite.create = jest.fn().mockResolvedValue({
+      id: 99,
+      familyId: 1,
+      createdAt: new Date('2026-03-25T10:00:00.000Z'),
+      updatedAt: new Date('2026-03-25T10:00:00.000Z'),
+      expiresAt: new Date('2026-04-01T10:00:00.000Z'),
+      usedAt: null,
+      revokedAt: null,
+      createdByUser: {
+        id: 7,
+        name: 'Alice',
+        email: 'alice@example.com',
+      },
     });
-    prismaMock.familyMembership.create = jest.fn().mockRejectedValue(
-      new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
-        code: 'P2002',
-        clientVersion: 'test',
-        meta: {},
-      }),
-    );
 
-    await expect(
-      service.joinFamily(9, { joinCode: 'ABCD1234' }),
-    ).rejects.toBeInstanceOf(ConflictException);
+    const result = await service.createInvite(7, 1);
+
+    expect(result.inviteUrl).toContain('inviteToken=');
   });
 
-  it('rejects duplicate family joins', async () => {
+  it('blocks invite creation for non-admin members', async () => {
+    prismaMock.familyMembership.findUnique = jest.fn().mockResolvedValue({
+      role: 'member',
+      family: {
+        id: 1,
+        name: 'Smith Family',
+        creatorId: 7,
+        createdAt: new Date('2026-03-25T10:00:00.000Z'),
+        updatedAt: new Date('2026-03-25T10:00:00.000Z'),
+        memberships: [],
+      },
+    });
+
+    await expect(service.createInvite(9, 1)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+  });
+
+  it('accepts an invite and joins as a member', async () => {
+    prismaMock.$transaction = jest
+      .fn()
+      .mockImplementation(
+        async (callback: (tx: typeof prismaMock) => Promise<unknown>) =>
+          callback(prismaMock),
+      );
+    prismaMock.familyInvite.findFirst = jest.fn().mockResolvedValue({
+      id: 5,
+      familyId: 1,
+    });
+    prismaMock.familyMembership.findUnique = jest.fn().mockResolvedValue(null);
+    prismaMock.familyInvite.updateMany = jest
+      .fn()
+      .mockResolvedValue({ count: 1 });
+    prismaMock.familyMembership.create = jest.fn().mockResolvedValue({
+      id: 10,
+    });
     prismaMock.family.findUnique = jest.fn().mockResolvedValue({
       id: 1,
       name: 'Smith Family',
-      joinCode: 'ABCD1234',
       creatorId: 7,
+      createdAt: new Date('2026-03-25T10:00:00.000Z'),
+      updatedAt: new Date('2026-03-25T10:00:00.000Z'),
       memberships: [
         {
+          userId: 7,
+          role: 'admin',
+          user: {
+            id: 7,
+            name: 'Alice',
+            email: 'alice@example.com',
+          },
+        },
+        {
           userId: 9,
-          user: { id: 9, name: 'Bob', email: 'bob@example.com' },
+          role: 'member',
+          user: {
+            id: 9,
+            name: 'Bob',
+            email: 'bob@example.com',
+          },
         },
       ],
     });
 
+    const result = await service.acceptInvite(9, { token: 'invite-token' });
+
+    expect(prismaMock.familyMembership.create).toHaveBeenCalledWith({
+      data: {
+        userId: 9,
+        familyId: 1,
+        role: 'member',
+      },
+    });
+    expect(result.currentUserRole).toBe('member');
+  });
+
+  it('rejects expired or invalid invite tokens', async () => {
+    prismaMock.$transaction = jest
+      .fn()
+      .mockImplementation(
+        async (callback: (tx: typeof prismaMock) => Promise<unknown>) =>
+          callback(prismaMock),
+      );
+    prismaMock.familyInvite.findFirst = jest.fn().mockResolvedValue(null);
+
     await expect(
-      service.joinFamily(9, { joinCode: 'ABCD1234' }),
+      service.acceptInvite(9, { token: 'missing-token' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects duplicate invite acceptance for existing members', async () => {
+    prismaMock.$transaction = jest
+      .fn()
+      .mockImplementation(
+        async (callback: (tx: typeof prismaMock) => Promise<unknown>) =>
+          callback(prismaMock),
+      );
+    prismaMock.familyInvite.findFirst = jest.fn().mockResolvedValue({
+      id: 5,
+      familyId: 1,
+    });
+    prismaMock.familyMembership.findUnique = jest.fn().mockResolvedValue({
+      id: 10,
+    });
+
+    await expect(
+      service.acceptInvite(9, { token: 'invite-token' }),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
-  it('rejects unknown family join codes', async () => {
-    prismaMock.family.findUnique = jest.fn().mockResolvedValue(null);
+  it('revokes active invites for admins', async () => {
+    prismaMock.familyInvite.findUnique = jest.fn().mockResolvedValue({
+      id: 5,
+      familyId: 1,
+      usedAt: null,
+      revokedAt: null,
+    });
+    prismaMock.familyMembership.findUnique = jest.fn().mockResolvedValue({
+      role: 'admin',
+      family: {
+        id: 1,
+        name: 'Smith Family',
+        creatorId: 7,
+        createdAt: new Date('2026-03-25T10:00:00.000Z'),
+        updatedAt: new Date('2026-03-25T10:00:00.000Z'),
+        memberships: [],
+      },
+    });
+    prismaMock.familyInvite.update = jest.fn().mockResolvedValue({
+      id: 5,
+    });
 
-    await expect(
-      service.joinFamily(9, { joinCode: 'MISSING' }),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.revokeInvite(7, 5)).resolves.toEqual({
+      success: true,
+    });
   });
 
   it('requires a shared family for cross-user wishlist reads', async () => {

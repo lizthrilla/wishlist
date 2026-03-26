@@ -57,7 +57,7 @@ export function logout() {
   });
 }
 type AuthResponse = {
-  user: AuthUser;
+  user: AuthUser | null;
 };
 
 export type ForgotPasswordResponse = {

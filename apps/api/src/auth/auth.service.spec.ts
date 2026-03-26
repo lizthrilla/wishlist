@@ -53,6 +53,27 @@ describe('AuthService', () => {
     expect(prismaMock.passwordResetToken.create).not.toHaveBeenCalled();
   });
 
+  it('returns null for current user when there is no session token', async () => {
+    await expect(service.getCurrentUser()).resolves.toBeNull();
+  });
+
+  it('returns the authenticated user for a valid session token', async () => {
+    prismaMock.session.findUnique = jest.fn().mockResolvedValue({
+      expiresAt: new Date(Date.now() + 60_000),
+      user: {
+        id: 7,
+        name: 'Alice',
+        email: 'alice@example.com',
+      },
+    });
+
+    await expect(service.getCurrentUser('session-token')).resolves.toEqual({
+      id: 7,
+      name: 'Alice',
+      email: 'alice@example.com',
+    });
+  });
+
   it('upgrades a legacy blank-password user during registration', async () => {
     prismaMock.user.findUnique = jest.fn().mockResolvedValue({
       id: 3,

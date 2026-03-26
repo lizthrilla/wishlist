@@ -137,6 +137,33 @@ export class AuthService {
     };
   }
 
+  async getCurrentUser(rawToken?: string) {
+    if (!rawToken) {
+      return null;
+    }
+
+    const session = await this.prisma.session.findUnique({
+      where: {
+        tokenHash: hashSessionToken(rawToken),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!session || session.expiresAt <= new Date()) {
+      return null;
+    }
+
+    return session.user;
+  }
+
   async forgotPassword(dto: ForgotPasswordDto) {
     const email = dto.email.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({
