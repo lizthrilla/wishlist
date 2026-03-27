@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method, @typescript-eslint/no-unsafe-assignment */
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { FamiliesService } from '../families/families.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { WishlistsService } from './wishlists.service';
 
@@ -14,12 +15,16 @@ describe('WishlistsService', () => {
       create: jest.fn(),
     },
   } as unknown as PrismaService;
+  const familiesServiceMock = {
+    assertSharedFamily: jest.fn(),
+  } as unknown as FamiliesService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         WishlistsService,
         { provide: PrismaService, useValue: prismaMock },
+        { provide: FamiliesService, useValue: familiesServiceMock },
       ],
     }).compile();
 

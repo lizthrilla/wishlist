@@ -4,12 +4,16 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { FamiliesService } from '../families/families.service';
 import { CreateWishlistItemDto } from '../wishlist-items/dto/create-wishlist-item.dto';
 import { CreateWishlistDto } from './dto/create-wishlist.dto';
 
 @Injectable()
 export class WishlistsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly familiesService: FamiliesService,
+  ) {}
 
   async createWishlist(dto: CreateWishlistDto, currentUserId: number) {
     const wishlist = await this.prisma.wishlist.create({
@@ -44,6 +48,62 @@ export class WishlistsService {
     });
     return wishlists.map((w) => ({ ...w, itemCount: w._count.items }));
   }
+  async listUserWishlists(currentUserId: number, targetUserId: number) {
+    await this.familiesService.assertSharedFamily(currentUserId, targetUserId);
+    const wishlists = await this.prisma.wishlist.findMany({
+      where: { userId: targetUserId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        title: true,
+        userId: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: { select: { items: true } },
+      },
+    });
+    return wishlists.map((w) => ({ ...w, itemCount: w._count.items }));
+  }
+
+  async getWishlistItemsForWishlist(currentUserId: number, wishlistId: number) {
+    const wishlist = await this.prisma.wishlist.findUnique({
+      where: { id: wishlistId },
+      select: { id: true, title: true, userId: true, user: { select: { name: true } } },
+    });
+
+    if (!wishlist) throw new NotFoundException(`Wishlist ${wishlistId} not found`);
+
+    await this.familiesService.assertSharedFamily(currentUserId, wishlist.userId);
+
+    const items = await this.prisma.wishlistItem.findMany({
+      where: { wishlistId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        url: true,
+        price: true,
+        createdAt: true,
+        wishlistId: true,
+        claim: { select: { claimedByUserId: true } },
+      },
+    });
+
+    return items.map((item) => ({
+      id: item.id,
+      name: item.name,
+      url: item.url,
+      price: item.price,
+      createdAt: item.createdAt,
+      wishlistId: item.wishlistId,
+      wishlistTitle: wishlist.title,
+      ownerId: wishlist.userId,
+      ownerName: wishlist.user.name,
+      isClaimed: item.claim !== null,
+      isClaimedByMe: item.claim?.claimedByUserId === currentUserId,
+    }));
+  }
+
   async createWishlistItem(
     wishlistId: number,
     dto: CreateWishlistItemDto,

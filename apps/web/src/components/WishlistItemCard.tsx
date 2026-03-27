@@ -8,15 +8,20 @@ export default function WishlistItemCard({
   wishlistTitle,
   url,
   price,
+  isClaimed,
+  isClaimedByMe,
   isOwner,
   onDelete,
   onEdit,
+  onClaim,
+  onUnclaim,
 }: CardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(name);
   const [editUrl, setEditUrl] = useState(url ?? '');
   const [editPrice, setEditPrice] = useState(price != null ? String(price) : '');
   const [saving, setSaving] = useState(false);
+  const [claiming, setClaiming] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
@@ -37,6 +42,18 @@ export default function WishlistItemCard({
     setEditUrl(url ?? '');
     setEditPrice(price != null ? String(price) : '');
     setIsEditing(false);
+  };
+
+  const handleClaim = async () => {
+    if (!onClaim) return;
+    setClaiming(true);
+    try { await onClaim(id); } finally { setClaiming(false); }
+  };
+
+  const handleUnclaim = async () => {
+    if (!onUnclaim) return;
+    setClaiming(true);
+    try { await onUnclaim(id); } finally { setClaiming(false); }
   };
 
   if (isEditing) {
@@ -97,6 +114,7 @@ export default function WishlistItemCard({
         )}
         {price != null && <p className="card-price">${price.toFixed(2)}</p>}
       </div>
+
       {isOwner && (
         <div className="card-actions">
           <button className="secondary-action" onClick={() => setIsEditing(true)}>
@@ -105,6 +123,33 @@ export default function WishlistItemCard({
           <button className="secondary-action" onClick={() => onDelete(id)}>
             Delete
           </button>
+          {isClaimed && <span className="pill">Claimed</span>}
+        </div>
+      )}
+
+      {!isOwner && (
+        <div className="card-actions">
+          {isClaimed && !isClaimedByMe && (
+            <span className="pill">Claimed</span>
+          )}
+          {isClaimedByMe && (
+            <button
+              className="secondary-action"
+              onClick={() => void handleUnclaim()}
+              disabled={claiming}
+            >
+              {claiming ? 'Unclaiming...' : 'Unclaim'}
+            </button>
+          )}
+          {!isClaimed && (
+            <button
+              className="primary-action"
+              onClick={() => void handleClaim()}
+              disabled={claiming}
+            >
+              {claiming ? 'Claiming...' : 'Claim'}
+            </button>
+          )}
         </div>
       )}
     </div>

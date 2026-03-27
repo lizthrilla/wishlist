@@ -53,4 +53,6 @@ export interface CardProps extends WishlistItemResponse {
   isOwner: boolean;
   onDelete: (id: number) => void;
   onEdit: (id: number, data: UpdateWishlistItemInput) => Promise<void>;
+  onClaim?: (id: number) => Promise<void>;
+  onUnclaim?: (id: number) => Promise<void>;
 }

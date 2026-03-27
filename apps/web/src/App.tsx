@@ -10,7 +10,7 @@ import {
   getFamilyInvites,
   revokeFamilyInvite,
 } from './api/families';
-import { deleteWishListItem, getWishlistItems, updateWishlistItem } from './api/wishlistItems';
+import { claimWishlistItem, deleteWishListItem, getWishlistItems, unclaimWishlistItem, updateWishlistItem } from './api/wishlistItems';
 import { createWishlist, createWishlistItem, getMyWishlists } from './api/wishlists';
 import { addFamilyMember } from './api/users';
 import AddItemForm from './components/AddItemForm';
@@ -20,6 +20,7 @@ import type { AppTab } from './components/BottomTabs';
 import CreateWishlistForm from './components/CreateWishlistForm';
 import FamiliesPanel from './components/FamiliesPanel';
 import FollowUserRow from './components/FollowUserRow';
+import WishlistDrilldown from './components/WishlistDrilldown';
 import StatsRow from './components/StatsRow';
 import WishlistItemCard from './components/WishlistItemCard';
 import { DropDown, PaginationButtons, UserSearch } from './components/index';
@@ -98,6 +99,9 @@ function App() {
 
   // Tab navigation
   const [activeTab, setActiveTab] = useState<AppTab>('feed');
+
+  // Drill-down navigation (viewing a family member's wishlists)
+  const [viewingUser, setViewingUser] = useState<{ id: number; name: string } | null>(null);
 
   const clearInviteTokenFromUrl = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -358,6 +362,7 @@ function App() {
       setFamilyNotice(null);
       setAddMemberLoading(false);
       setAddMemberError(null);
+      setViewingUser(null);
     }
   };
 
@@ -472,12 +477,21 @@ function App() {
     }
   };
 
+  const handleClaim = useCallback(async (itemId: number) => {
+    await claimWishlistItem(itemId);
+    await fetchData();
+  }, [fetchData]);
+
+  const handleUnclaim = useCallback(async (itemId: number) => {
+    await unclaimWishlistItem(itemId);
+    await fetchData();
+  }, [fetchData]);
+
+  const handleCloseDrilldown = useCallback(() => setViewingUser(null), []);
+
   const handleViewUserWishlist = (userId: number) => {
     const member = families.flatMap((f) => f.members).find((m) => m.id === userId);
-    if (member) {
-      setInputUserName(member.name);
-      setSearchUserName(member.name);
-    }
+    if (member) setViewingUser({ id: member.id, name: member.name });
     setActiveTab('feed');
   };
 
@@ -699,64 +713,78 @@ function App() {
 
         {activeTab === 'feed' && (
           <section className="panel">
-            <div className="panel-header">
-              <div>
-                <h2>Shared wishlist feed</h2>
-                <p className="subtle">
-                  The feed shows your own items plus wishlists from users who share a family with you.
-                </p>
-              </div>
-            </div>
-            <UserSearch
-              onSubmit={handleSearchSubmit}
-              value={inputUserName}
-              onChange={setInputUserName}
-            />
-            {loading && <h2>Loading...</h2>}
-            {error ? (
-              <div className="empty-state">
-                <h3>{error}</h3>
-              </div>
-            ) : filteredItems.length === 0 ? (
-              <div className="empty-state">
-                <h3>No visible wishlist items</h3>
-                <p>
-                  {families.length === 0
-                    ? 'You can only see your own items until you create or join a family.'
-                    : 'No items match your current family access and search filters.'}
-                </p>
-              </div>
+            {viewingUser ? (
+              <WishlistDrilldown
+                viewingUser={viewingUser}
+                currentUserId={currentUser.id}
+                onBack={handleCloseDrilldown}
+                onClaim={handleClaim}
+                onUnclaim={handleUnclaim}
+              />
             ) : (
               <>
-                <div className="wishlist-stack">
-                  {filteredItems.map((item) => (
-                    <WishlistItemCard
-                      key={item.id}
-                      {...item}
-                      isOwner={item.ownerId === currentUser.id}
-                      onDelete={(id) => {
-                        if (item.ownerId !== currentUser.id) {
-                          setError('You can only delete items from your own wishlist.');
-                          return;
-                        }
-                        void onDeleteItem(id);
-                      }}
-                      onEdit={handleEditItem}
-                    />
-                  ))}
+                <div className="panel-header">
+                  <div>
+                    <h2>Shared wishlist feed</h2>
+                    <p className="subtle">
+                      The feed shows your own items plus wishlists from users who share a family with you.
+                    </p>
+                  </div>
                 </div>
-                <PaginationButtons
-                  handleBackPage={handleBackPage}
-                  handleNextPage={handleNextPage}
-                  currentPage={currentPage}
-                  totalPages={meta?.totalPages}
+                <UserSearch
+                  onSubmit={handleSearchSubmit}
+                  value={inputUserName}
+                  onChange={setInputUserName}
                 />
-                <DropDown
-                  limit={limit}
-                  setLimit={setLimit}
-                  setCurrentPage={setCurrentPage}
-                  totalItems={meta?.total}
-                />
+                {loading && <h2>Loading...</h2>}
+                {error ? (
+                  <div className="empty-state">
+                    <h3>{error}</h3>
+                  </div>
+                ) : filteredItems.length === 0 ? (
+                  <div className="empty-state">
+                    <h3>No visible wishlist items</h3>
+                    <p>
+                      {families.length === 0
+                        ? 'You can only see your own items until you create or join a family.'
+                        : 'No items match your current family access and search filters.'}
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="wishlist-stack">
+                      {filteredItems.map((item) => (
+                        <WishlistItemCard
+                          key={item.id}
+                          {...item}
+                          isOwner={item.ownerId === currentUser.id}
+                          onDelete={(id) => {
+                            if (item.ownerId !== currentUser.id) {
+                              setError('You can only delete items from your own wishlist.');
+                              return;
+                            }
+                            void onDeleteItem(id);
+                          }}
+                          onEdit={handleEditItem}
+                          onClaim={item.ownerId !== currentUser.id ? handleClaim : undefined}
+                          onUnclaim={item.ownerId !== currentUser.id ? handleUnclaim : undefined}
+                        />
+                      ))}
+                    </div>
+                    <PaginationButtons
+                      handleBackPage={handleBackPage}
+                      handleNextPage={handleNextPage}
+                      currentPage={currentPage}
+                      totalPages={meta?.totalPages}
+                    />
+                    <DropDown
+                      limit={limit}
+                      setLimit={setLimit}
+                      setCurrentPage={setCurrentPage}
+                      totalItems={meta?.total}
+                    />
+                  </>
+                )}
               </>
             )}
           </section>

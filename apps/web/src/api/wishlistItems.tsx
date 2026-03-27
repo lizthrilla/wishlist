@@ -52,3 +52,14 @@ export function updateWishlistItem(id: number, data: UpdateWishlistItemInput) {
     body: JSON.stringify(data),
   });
 }
+
+export function claimWishlistItem(id: number) {
+  return apiRequest<{ id: number; wishlistItemId: number; claimedAt: string }>(
+    `/api/wishlist-items/${id}/claim`,
+    { method: 'POST' },
+  );
+}
+
+export function unclaimWishlistItem(id: number) {
+  return apiRequest<void>(`/api/wishlist-items/${id}/unclaim`, { method: 'POST' });
+}

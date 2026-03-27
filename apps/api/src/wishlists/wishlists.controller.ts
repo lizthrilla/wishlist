@@ -32,6 +32,14 @@ export class WishlistsController {
     return this.wishlistsService.listMyWishlists(user.id);
   }
 
+  @Get(':wishlistId/items')
+  getWishlistItems(
+    @Param('wishlistId', ParseIntPipe) wishlistId: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.wishlistsService.getWishlistItemsForWishlist(user.id, wishlistId);
+  }
+
   @Post(':wishlistId/items')
   createWishlistItem(
     @Param('wishlistId', ParseIntPipe) wishlistId: number,

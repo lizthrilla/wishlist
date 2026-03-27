@@ -8,6 +8,7 @@ import {
   Param,
   ParseIntPipe,
   Patch,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -57,6 +58,24 @@ export class WishlistItemsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.wishlistItemsService.updateWishlistItem(id, dto, user.id);
+  }
+
+  @Post(':id/claim')
+  @HttpCode(200)
+  claimItem(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.wishlistItemsService.claimItem(id, user.id);
+  }
+
+  @Post(':id/unclaim')
+  @HttpCode(204)
+  unclaimItem(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.wishlistItemsService.unclaimItem(id, user.id);
   }
 
   @Delete(':id')

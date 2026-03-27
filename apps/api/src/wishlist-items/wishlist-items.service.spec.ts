@@ -46,6 +46,7 @@ describe('WishlistItemsService', () => {
         price: 299,
         createdAt: new Date('2025-01-01'),
         wishlistId: 3,
+        claim: null,
         wishlist: {
           id: 3,
           title: 'Travel',
@@ -133,6 +134,8 @@ describe('WishlistItemsService', () => {
           wishlistTitle: 'Travel',
           ownerId: 7,
           ownerName: 'Alice',
+          isClaimed: false,
+          isClaimedByMe: false,
         },
       ],
       meta: {
