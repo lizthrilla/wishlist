@@ -21,6 +21,7 @@ model User {
   createdFamilies     Family[]             @relation("FamilyCreator")
   createdFamilyInvites FamilyInvite[]      @relation("FamilyInviteCreator")
   wishlists           Wishlist[]
+  claims              WishlistItemClaim[]
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
 }
@@ -93,12 +94,23 @@ model Wishlist {
 }
 
 model WishlistItem {
-  id         Int      @id @default(autoincrement())
+  id         Int                @id @default(autoincrement())
   name       String
   url        String?
   price      Float?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  wishlist   Wishlist @relation(fields: [wishlistId], references: [id])
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  wishlist   Wishlist           @relation(fields: [wishlistId], references: [id])
   wishlistId Int
+  claim      WishlistItemClaim?
+}
+
+model WishlistItemClaim {
+  id              Int          @id @default(autoincrement())
+  wishlistItemId  Int          @unique
+  claimedByUserId Int
+  claimedAt       DateTime     @default(now())
+
+  wishlistItem    WishlistItem @relation(fields: [wishlistItemId], references: [id], onDelete: Cascade)
+  claimedByUser   User         @relation(fields: [claimedByUserId], references: [id], onDelete: Cascade)
 }

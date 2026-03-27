@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Test, TestingModule } from '@nestjs/testing';
 import { FamiliesService } from '../families/families.service';
@@ -12,6 +12,11 @@ describe('WishlistItemsService', () => {
     wishlistItem: {
       findMany: jest.fn(),
       count: jest.fn(),
+      findUnique: jest.fn(),
+      delete: jest.fn(),
+    },
+    wishlistItemClaim: {
+      create: jest.fn(),
       findUnique: jest.fn(),
       delete: jest.fn(),
     },
@@ -46,6 +51,7 @@ describe('WishlistItemsService', () => {
         price: 299,
         createdAt: new Date('2025-01-01'),
         wishlistId: 3,
+        claim: null,
         wishlist: {
           id: 3,
           title: 'Travel',
@@ -133,6 +139,8 @@ describe('WishlistItemsService', () => {
           wishlistTitle: 'Travel',
           ownerId: 7,
           ownerName: 'Alice',
+          isClaimed: false,
+          isClaimedByMe: false,
         },
       ],
       meta: {
@@ -284,5 +292,193 @@ describe('WishlistItemsService', () => {
     await expect(service.deleteWishlistItem(999, 7)).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+
+  describe('claimItem', () => {
+    const claimedAt = new Date('2025-06-01');
+
+    it('creates a claim and returns id, wishlistItemId, claimedAt without claimedByUserId', async () => {
+      prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue({
+        id: 10,
+        wishlist: { userId: 5 },
+        claim: null,
+      });
+      (familiesServiceMock.assertSharedFamily as jest.Mock).mockResolvedValue(undefined);
+      (prismaMock.wishlistItemClaim.create as jest.Mock).mockResolvedValue({
+        id: 1,
+        wishlistItemId: 10,
+        claimedAt,
+      });
+
+      const result = await service.claimItem(10, 7);
+
+      expect(result).toEqual({ id: 1, wishlistItemId: 10, claimedAt });
+      expect(result).not.toHaveProperty('claimedByUserId');
+      expect(prismaMock.wishlistItemClaim.create).toHaveBeenCalledWith({
+        data: { wishlistItemId: 10, claimedByUserId: 7 },
+        select: { id: true, wishlistItemId: true, claimedAt: true },
+      });
+    });
+
+    it('returns existing claim idempotently when already claimed by current user', async () => {
+      prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue({
+        id: 10,
+        wishlist: { userId: 5 },
+        claim: { id: 1, claimedByUserId: 7, claimedAt },
+      });
+      (familiesServiceMock.assertSharedFamily as jest.Mock).mockResolvedValue(undefined);
+
+      const result = await service.claimItem(10, 7);
+
+      expect(result).toEqual({ id: 1, wishlistItemId: 10, claimedAt });
+      expect(prismaMock.wishlistItemClaim.create).not.toHaveBeenCalled();
+    });
+
+    it('throws ConflictException when item is already claimed by a different user', async () => {
+      prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue({
+        id: 10,
+        wishlist: { userId: 5 },
+        claim: { id: 1, claimedByUserId: 99, claimedAt },
+      });
+      (familiesServiceMock.assertSharedFamily as jest.Mock).mockResolvedValue(undefined);
+
+      await expect(service.claimItem(10, 7)).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('throws ForbiddenException when item belongs to current user', async () => {
+      prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue({
+        id: 10,
+        wishlist: { userId: 7 },
+        claim: null,
+      });
+
+      await expect(service.claimItem(10, 7)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(familiesServiceMock.assertSharedFamily).not.toHaveBeenCalled();
+    });
+
+    it('propagates ForbiddenException from assertSharedFamily', async () => {
+      prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue({
+        id: 10,
+        wishlist: { userId: 5 },
+        claim: null,
+      });
+      (familiesServiceMock.assertSharedFamily as jest.Mock).mockRejectedValue(
+        new ForbiddenException('No shared family'),
+      );
+
+      await expect(service.claimItem(10, 7)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prismaMock.wishlistItemClaim.create).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when item does not exist', async () => {
+      prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue(null);
+
+      await expect(service.claimItem(999, 7)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('handles concurrent claim race (P2002): returns existing claim if same user won the race', async () => {
+      prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue({
+        id: 10,
+        wishlist: { userId: 5 },
+        claim: null,
+      });
+      (familiesServiceMock.assertSharedFamily as jest.Mock).mockResolvedValue(undefined);
+      const p2002 = new Prisma.PrismaClientKnownRequestError('Unique constraint', {
+        code: 'P2002',
+        clientVersion: 'test',
+        meta: {},
+      });
+      (prismaMock.wishlistItemClaim.create as jest.Mock).mockRejectedValue(p2002);
+      (prismaMock.wishlistItemClaim.findUnique as jest.Mock).mockResolvedValue({
+        id: 1,
+        wishlistItemId: 10,
+        claimedByUserId: 7,
+        claimedAt,
+      });
+
+      const result = await service.claimItem(10, 7);
+
+      expect(result).toEqual({ id: 1, wishlistItemId: 10, claimedAt });
+    });
+
+    it('handles concurrent claim race (P2002): throws ConflictException if different user won the race', async () => {
+      prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue({
+        id: 10,
+        wishlist: { userId: 5 },
+        claim: null,
+      });
+      (familiesServiceMock.assertSharedFamily as jest.Mock).mockResolvedValue(undefined);
+      const p2002 = new Prisma.PrismaClientKnownRequestError('Unique constraint', {
+        code: 'P2002',
+        clientVersion: 'test',
+        meta: {},
+      });
+      (prismaMock.wishlistItemClaim.create as jest.Mock).mockRejectedValue(p2002);
+      (prismaMock.wishlistItemClaim.findUnique as jest.Mock).mockResolvedValue({
+        id: 1,
+        wishlistItemId: 10,
+        claimedByUserId: 99,
+        claimedAt,
+      });
+
+      await expect(service.claimItem(10, 7)).rejects.toBeInstanceOf(ConflictException);
+    });
+  });
+
+  describe('unclaimItem', () => {
+    it('deletes the claim and returns void', async () => {
+      prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue({
+        id: 10,
+        claim: { id: 1, claimedByUserId: 7 },
+      });
+      (prismaMock.wishlistItemClaim.delete as jest.Mock).mockResolvedValue(undefined);
+
+      await expect(service.unclaimItem(10, 7)).resolves.toBeUndefined();
+
+      expect(prismaMock.wishlistItemClaim.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+    });
+
+    it('returns void without calling delete when no claim exists', async () => {
+      prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue({
+        id: 10,
+        claim: null,
+      });
+
+      await expect(service.unclaimItem(10, 7)).resolves.toBeUndefined();
+
+      expect(prismaMock.wishlistItemClaim.delete).not.toHaveBeenCalled();
+    });
+
+    it('throws ForbiddenException when claim belongs to a different user', async () => {
+      prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue({
+        id: 10,
+        claim: { id: 1, claimedByUserId: 99 },
+      });
+
+      await expect(service.unclaimItem(10, 7)).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(prismaMock.wishlistItemClaim.delete).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when item does not exist', async () => {
+      prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue(null);
+
+      await expect(service.unclaimItem(999, 7)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('handles concurrent unclaim race (P2025): returns void idempotently', async () => {
+      prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue({
+        id: 10,
+        claim: { id: 1, claimedByUserId: 7 },
+      });
+      const p2025 = new Prisma.PrismaClientKnownRequestError('Not found', {
+        code: 'P2025',
+        clientVersion: 'test',
+        meta: {},
+      });
+      (prismaMock.wishlistItemClaim.delete as jest.Mock).mockRejectedValue(p2025);
+
+      await expect(service.unclaimItem(10, 7)).resolves.toBeUndefined();
+    });
   });
 });

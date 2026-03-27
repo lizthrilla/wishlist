@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -74,6 +75,7 @@ export class WishlistItemsService {
           price: true,
           createdAt: true,
           wishlistId: true,
+          claim: { select: { claimedByUserId: true } },
           wishlist: {
             select: {
               id: true,
@@ -101,6 +103,8 @@ export class WishlistItemsService {
       wishlistTitle: item.wishlist.title,
       ownerId: item.wishlist.user.id,
       ownerName: item.wishlist.user.name,
+      isClaimed: item.claim !== null,
+      isClaimedByMe: item.claim?.claimedByUserId === currentUserId,
     }));
     const totalPages = Math.ceil(total / limit);
     // adding meta data to easily parse the page, limit, total and total pages for later use
@@ -152,6 +156,80 @@ export class WishlistItemsService {
         wishlistId: true,
       },
     });
+  }
+
+  async claimItem(itemId: number, currentUserId: number) {
+    const item = await this.prisma.wishlistItem.findUnique({
+      where: { id: itemId },
+      select: {
+        id: true,
+        wishlist: { select: { userId: true } },
+        claim: { select: { id: true, claimedByUserId: true, claimedAt: true } },
+      },
+    });
+
+    if (!item) throw new NotFoundException(`WishlistItem ${itemId} not found`);
+
+    if (item.wishlist.userId === currentUserId) {
+      throw new ForbiddenException('You cannot claim your own wishlist item');
+    }
+
+    await this.familiesService.assertSharedFamily(currentUserId, item.wishlist.userId);
+
+    if (item.claim) {
+      if (item.claim.claimedByUserId === currentUserId) {
+        return { id: item.claim.id, wishlistItemId: itemId, claimedAt: item.claim.claimedAt };
+      }
+      throw new ConflictException('This item has already been claimed');
+    }
+
+    try {
+      const claim = await this.prisma.wishlistItemClaim.create({
+        data: { wishlistItemId: itemId, claimedByUserId: currentUserId },
+        select: { id: true, wishlistItemId: true, claimedAt: true },
+      });
+      return claim;
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        // Race: another request won the insert — re-fetch to determine correct response
+        const existing = await this.prisma.wishlistItemClaim.findUnique({
+          where: { wishlistItemId: itemId },
+          select: { id: true, wishlistItemId: true, claimedByUserId: true, claimedAt: true },
+        });
+        if (!existing) throw err;
+        if (existing.claimedByUserId === currentUserId) {
+          return { id: existing.id, wishlistItemId: itemId, claimedAt: existing.claimedAt };
+        }
+        throw new ConflictException('This item has already been claimed');
+      }
+      throw err;
+    }
+  }
+
+  async unclaimItem(itemId: number, currentUserId: number) {
+    const item = await this.prisma.wishlistItem.findUnique({
+      where: { id: itemId },
+      select: {
+        id: true,
+        claim: { select: { id: true, claimedByUserId: true } },
+      },
+    });
+
+    if (!item) throw new NotFoundException(`WishlistItem ${itemId} not found`);
+    if (!item.claim) return;
+
+    if (item.claim.claimedByUserId !== currentUserId) {
+      throw new ForbiddenException('You can only unclaim items you have claimed');
+    }
+
+    try {
+      await this.prisma.wishlistItemClaim.delete({ where: { id: item.claim.id } });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+        return; // already deleted by a concurrent request — idempotent
+      }
+      throw err;
+    }
   }
 
   async deleteWishlistItem(id: number, currentUserId: number) {

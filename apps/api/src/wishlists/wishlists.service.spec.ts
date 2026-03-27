@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/unbound-method, @typescript-eslint/no-unsafe-assignment */
-import { NotFoundException } from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
+import { FamiliesService } from '../families/families.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { WishlistsService } from './wishlists.service';
 
@@ -9,17 +10,23 @@ describe('WishlistsService', () => {
   const prismaMock = {
     wishlist: {
       findUnique: jest.fn(),
+      findMany: jest.fn(),
     },
     wishlistItem: {
       create: jest.fn(),
+      findMany: jest.fn(),
     },
   } as unknown as PrismaService;
+  const familiesServiceMock = {
+    assertSharedFamily: jest.fn(),
+  } as unknown as FamiliesService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         WishlistsService,
         { provide: PrismaService, useValue: prismaMock },
+        { provide: FamiliesService, useValue: familiesServiceMock },
       ],
     }).compile();
 
@@ -77,5 +84,53 @@ describe('WishlistsService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
 
     expect(prismaMock.wishlistItem.create).not.toHaveBeenCalled();
+  });
+
+  describe('getWishlistItemsForWishlist', () => {
+    const createdAt = new Date('2025-05-01');
+    const wishlist = {
+      id: 3,
+      title: 'Birthday',
+      userId: 5,
+      user: { name: 'Alice' },
+    };
+
+    it('returns items mapped with isClaimed and isClaimedByMe, without claimedByUserId', async () => {
+      prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue(wishlist);
+      (familiesServiceMock.assertSharedFamily as jest.Mock).mockResolvedValue(undefined);
+      prismaMock.wishlistItem.findMany = jest.fn().mockResolvedValue([
+        { id: 1, name: 'Shoes', url: null, price: 50, createdAt, wishlistId: 3, claim: null },
+        { id: 2, name: 'Bag', url: null, price: 80, createdAt, wishlistId: 3, claim: { claimedByUserId: 7 } },
+        { id: 3, name: 'Hat', url: null, price: 30, createdAt, wishlistId: 3, claim: { claimedByUserId: 99 } },
+      ]);
+
+      const result = await service.getWishlistItemsForWishlist(7, 3);
+
+      expect(result).toEqual([
+        { id: 1, name: 'Shoes', url: null, price: 50, createdAt, wishlistId: 3, wishlistTitle: 'Birthday', ownerId: 5, ownerName: 'Alice', isClaimed: false, isClaimedByMe: false },
+        { id: 2, name: 'Bag', url: null, price: 80, createdAt, wishlistId: 3, wishlistTitle: 'Birthday', ownerId: 5, ownerName: 'Alice', isClaimed: true, isClaimedByMe: true },
+        { id: 3, name: 'Hat', url: null, price: 30, createdAt, wishlistId: 3, wishlistTitle: 'Birthday', ownerId: 5, ownerName: 'Alice', isClaimed: true, isClaimedByMe: false },
+      ]);
+      result.forEach((item) => expect(item).not.toHaveProperty('claimedByUserId'));
+    });
+
+    it('throws NotFoundException when wishlist does not exist', async () => {
+      prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue(null);
+
+      await expect(service.getWishlistItemsForWishlist(7, 999)).rejects.toBeInstanceOf(NotFoundException);
+
+      expect(prismaMock.wishlistItem.findMany).not.toHaveBeenCalled();
+    });
+
+    it('propagates ForbiddenException from assertSharedFamily', async () => {
+      prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue(wishlist);
+      (familiesServiceMock.assertSharedFamily as jest.Mock).mockRejectedValue(
+        new ForbiddenException('No shared family'),
+      );
+
+      await expect(service.getWishlistItemsForWishlist(7, 3)).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(prismaMock.wishlistItem.findMany).not.toHaveBeenCalled();
+    });
   });
 });

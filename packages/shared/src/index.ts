@@ -14,6 +14,8 @@ export type WishlistItemResponse = WishlistItem & {
   wishlistTitle: string;
   ownerId: number;
   ownerName: string;
+  isClaimed: boolean;
+  isClaimedByMe: boolean;
 };
 
 export type PaginationMeta = {

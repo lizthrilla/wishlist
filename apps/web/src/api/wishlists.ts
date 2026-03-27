@@ -21,3 +21,11 @@ export function createWishlistItem(
     body: JSON.stringify(data),
   });
 }
+
+export function getUserWishlists(userId: number) {
+  return apiRequest<WishlistSummary[]>(`/api/users/${userId}/wishlists`);
+}
+
+export function getWishlistItemsForWishlist(wishlistId: number) {
+  return apiRequest<WishlistItemResponse[]>(`/api/wishlists/${wishlistId}/items`);
+}
