@@ -1,5 +1,6 @@
 import type { FormEvent } from 'react';
 import type { FamilyInviteSummary, FamilySummary } from '../types/wishlist';
+import UserSearchPanel from './UserSearchPanel';
 
 interface FamiliesPanelProps {
   families: FamilySummary[];
@@ -15,6 +16,9 @@ interface FamiliesPanelProps {
   onCreateFamily: (event: FormEvent<HTMLFormElement>) => void;
   onCreateInvite: (familyId: number) => void;
   onRevokeInvite: (familyId: number, inviteId: number) => void;
+  onAddMember?: (familyId: number, userId: number) => Promise<void>;
+  addMemberLoading?: boolean;
+  addMemberError?: string | null;
 }
 
 export default function FamiliesPanel({
@@ -31,6 +35,9 @@ export default function FamiliesPanel({
   onCreateFamily,
   onCreateInvite,
   onRevokeInvite,
+  onAddMember,
+  addMemberLoading = false,
+  addMemberError = null,
 }: FamiliesPanelProps) {
   return (
     <section className="panel">
@@ -60,6 +67,14 @@ export default function FamiliesPanel({
       </div>
       {familyError && <p className="form-error">{familyError}</p>}
       {familyNotice && <p className="form-notice">{familyNotice}</p>}
+      {onAddMember && (
+        <UserSearchPanel
+          families={families}
+          onAddMember={onAddMember}
+          addMemberLoading={addMemberLoading}
+          addMemberError={addMemberError}
+        />
+      )}
       <div className="family-list">
         {families.length === 0 ? (
           <div className="empty-state">

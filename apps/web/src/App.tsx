@@ -12,6 +12,7 @@ import {
 } from './api/families';
 import { deleteWishListItem, getWishlistItems, updateWishlistItem } from './api/wishlistItems';
 import { createWishlist, createWishlistItem, getMyWishlists } from './api/wishlists';
+import { addFamilyMember } from './api/users';
 import AddItemForm from './components/AddItemForm';
 import AppHeader from './components/AppHeader';
 import BottomTabs from './components/BottomTabs';
@@ -87,6 +88,10 @@ function App() {
     return new URLSearchParams(window.location.search).get('inviteToken');
   });
   const [inviteAcceptanceLoading, setInviteAcceptanceLoading] = useState(false);
+
+  // Add member state
+  const [addMemberLoading, setAddMemberLoading] = useState(false);
+  const [addMemberError, setAddMemberError] = useState<string | null>(null);
 
   // Tab navigation
   const [activeTab, setActiveTab] = useState<AppTab>('feed');
@@ -338,6 +343,8 @@ function App() {
       setAuthNotice(null);
       setFamilyError(null);
       setFamilyNotice(null);
+      setAddMemberLoading(false);
+      setAddMemberError(null);
     }
   };
 
@@ -397,6 +404,24 @@ function App() {
     }
   };
 
+  const handleAddMember = useCallback(
+    async (familyId: number, userId: number) => {
+      setAddMemberLoading(true);
+      setAddMemberError(null);
+      try {
+        await addFamilyMember(familyId, userId);
+        setFamilyNotice('Member added successfully.');
+        await fetchFamilies();
+        await fetchData();
+      } catch (err) {
+        setAddMemberError(err instanceof Error ? err.message : 'Failed to add member');
+      } finally {
+        setAddMemberLoading(false);
+      }
+    },
+    [fetchFamilies, fetchData],
+  );
+
   const handleCreateWishlist = async (title: string) => {
     setCreateWishlistLoading(true);
     setCreateWishlistError(null);
@@ -411,13 +436,19 @@ function App() {
   };
 
   const handleAddItem = async (
-    wishlistId: number,
+    wishlistId: number | null,
     data: { name: string; url?: string; price?: number },
   ) => {
     setAddItemLoading(true);
     setAddItemError(null);
     try {
-      await createWishlistItem(wishlistId, data);
+      let resolvedId = wishlistId;
+      if (resolvedId === null) {
+        const newWishlist = await createWishlist('My Wishlist');
+        setMyWishlists((prev) => [newWishlist, ...prev]);
+        resolvedId = newWishlist.id;
+      }
+      await createWishlistItem(resolvedId, data);
       await fetchData();
       await fetchMyWishlists();
     } catch (err) {
@@ -732,6 +763,9 @@ function App() {
             onCreateFamily={(event) => void handleCreateFamily(event)}
             onCreateInvite={(familyId) => void handleCreateInvite(familyId)}
             onRevokeInvite={(familyId, inviteId) => void handleRevokeInvite(familyId, inviteId)}
+            onAddMember={handleAddMember}
+            addMemberLoading={addMemberLoading}
+            addMemberError={addMemberError}
           />
         )}
       </div>

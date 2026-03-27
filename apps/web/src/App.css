@@ -374,6 +374,76 @@
   font-size: 0.875rem;
 }
 
+/* ---- UserSearchPanel ---- */
+.user-search-panel {
+  margin: 1.5rem 0;
+  padding: 1.25rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.user-search-panel h3 {
+  margin: 0 0 0.25rem;
+}
+
+.user-search-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.user-search-form input {
+  flex: 1;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+}
+
+.user-search-form .secondary-action {
+  white-space: nowrap;
+  padding: 0.75rem 1rem;
+}
+
+.user-search-results {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.user-search-result-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 0.75rem 1rem;
+  background: #fff;
+  flex-wrap: wrap;
+}
+
+.user-search-result-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.user-search-result-actions select {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+}
+
+.user-search-result-actions .secondary-action {
+  padding: 0.6rem 0.75rem;
+  font-size: 0.875rem;
+}
+
 /* ---- FollowUserRow ---- */
 .follow-user-row {
   display: flex;

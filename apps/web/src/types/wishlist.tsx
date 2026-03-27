@@ -4,9 +4,10 @@ import type {
   WishlistItemResponse,
   WishlistSummary,
   UpdateWishlistItemInput,
+  UserSearchResult,
 } from '@wishlist/shared';
 
-export type { WishlistItemResponse, PaginationMeta, PaginatedWishlistItems, WishlistSummary, UpdateWishlistItemInput };
+export type { WishlistItemResponse, PaginationMeta, PaginatedWishlistItems, WishlistSummary, UpdateWishlistItemInput, UserSearchResult };
 
 export interface AuthUser {
   id: number;

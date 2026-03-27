@@ -22,3 +22,4 @@ export { default as AddItemForm } from './AddItemForm';
 export { default as WishlistItemCard } from './WishlistItemCard';
 export { default as FamiliesPanel } from './FamiliesPanel';
 export { default as FollowUserRow } from './FollowUserRow';
+export { default as UserSearchPanel } from './UserSearchPanel';

@@ -3,7 +3,7 @@ import type { WishlistSummary } from '../types/wishlist';
 
 interface AddItemFormProps {
   wishlists: WishlistSummary[];
-  onSubmit: (wishlistId: number, data: { name: string; url?: string; price?: number }) => Promise<void>;
+  onSubmit: (wishlistId: number | null, data: { name: string; url?: string; price?: number }) => Promise<void>;
   loading: boolean;
   error: string | null;
 }
@@ -16,8 +16,17 @@ export default function AddItemForm({ wishlists, onSubmit, loading, error }: Add
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!selectedWishlistId || !name.trim()) return;
-    await onSubmit(selectedWishlistId, {
+    if (!name.trim()) return;
+
+    const wishlistId = wishlists.length === 0
+      ? null
+      : selectedWishlistId === ''
+        ? null
+        : selectedWishlistId;
+
+    if (wishlists.length > 0 && wishlistId === null) return;
+
+    await onSubmit(wishlistId, {
       name: name.trim(),
       url: url.trim() || undefined,
       price: price ? parseFloat(price) : undefined,
@@ -27,14 +36,6 @@ export default function AddItemForm({ wishlists, onSubmit, loading, error }: Add
     setPrice('');
   };
 
-  if (wishlists.length === 0) {
-    return (
-      <div className="empty-state">
-        <p>Create a wishlist above to start adding items.</p>
-      </div>
-    );
-  }
-
   return (
     <form
       className="stacked-form"
@@ -42,21 +43,26 @@ export default function AddItemForm({ wishlists, onSubmit, loading, error }: Add
         void handleSubmit(event);
       }}
     >
-      <label htmlFor="add-item-wishlist">Add item</label>
-      <select
-        id="add-item-wishlist"
-        value={selectedWishlistId}
-        onChange={(event) => setSelectedWishlistId(Number(event.target.value))}
-        disabled={loading}
-      >
-        <option value="">Select a wishlist</option>
-        {wishlists.map((w) => (
-          <option key={w.id} value={w.id}>
-            {w.title}
-          </option>
-        ))}
-      </select>
+      <label htmlFor="add-item-name">Add item</label>
+      {wishlists.length === 0 ? (
+        <p className="subtle">Will be added to your default wishlist "My Wishlist".</p>
+      ) : (
+        <select
+          id="add-item-wishlist"
+          value={selectedWishlistId}
+          onChange={(event) => setSelectedWishlistId(Number(event.target.value))}
+          disabled={loading}
+        >
+          <option value="">Select a wishlist</option>
+          {wishlists.map((w) => (
+            <option key={w.id} value={w.id}>
+              {w.title}
+            </option>
+          ))}
+        </select>
+      )}
       <input
+        id="add-item-name"
         type="text"
         placeholder="Item name"
         value={name}
@@ -83,7 +89,7 @@ export default function AddItemForm({ wishlists, onSubmit, loading, error }: Add
       <button
         type="submit"
         className="primary-action"
-        disabled={loading || !selectedWishlistId || !name.trim()}
+        disabled={loading || !name.trim() || (wishlists.length > 0 && !selectedWishlistId)}
       >
         {loading ? 'Adding...' : 'Add item'}
       </button>
