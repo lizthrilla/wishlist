@@ -174,6 +174,8 @@ export class WishlistItemsService {
       throw new ForbiddenException('You cannot claim your own wishlist item');
     }
 
+    await this.familiesService.assertSharedFamily(currentUserId, item.wishlist.userId);
+
     if (item.claim) {
       if (item.claim.claimedByUserId === currentUserId) {
         return { id: item.claim.id, wishlistItemId: itemId, claimedAt: item.claim.claimedAt };
@@ -181,11 +183,27 @@ export class WishlistItemsService {
       throw new ConflictException('This item has already been claimed');
     }
 
-    const claim = await this.prisma.wishlistItemClaim.create({
-      data: { wishlistItemId: itemId, claimedByUserId: currentUserId },
-      select: { id: true, wishlistItemId: true, claimedAt: true },
-    });
-    return claim;
+    try {
+      const claim = await this.prisma.wishlistItemClaim.create({
+        data: { wishlistItemId: itemId, claimedByUserId: currentUserId },
+        select: { id: true, wishlistItemId: true, claimedAt: true },
+      });
+      return claim;
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        // Race: another request won the insert — re-fetch to determine correct response
+        const existing = await this.prisma.wishlistItemClaim.findUnique({
+          where: { wishlistItemId: itemId },
+          select: { id: true, wishlistItemId: true, claimedByUserId: true, claimedAt: true },
+        });
+        if (!existing) throw err;
+        if (existing.claimedByUserId === currentUserId) {
+          return { id: existing.id, wishlistItemId: itemId, claimedAt: existing.claimedAt };
+        }
+        throw new ConflictException('This item has already been claimed');
+      }
+      throw err;
+    }
   }
 
   async unclaimItem(itemId: number, currentUserId: number) {
@@ -204,7 +222,14 @@ export class WishlistItemsService {
       throw new ForbiddenException('You can only unclaim items you have claimed');
     }
 
-    await this.prisma.wishlistItemClaim.delete({ where: { id: item.claim.id } });
+    try {
+      await this.prisma.wishlistItemClaim.delete({ where: { id: item.claim.id } });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+        return; // already deleted by a concurrent request — idempotent
+      }
+      throw err;
+    }
   }
 
   async deleteWishlistItem(id: number, currentUserId: number) {

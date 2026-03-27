@@ -5,7 +5,6 @@ import WishlistItemCard from './WishlistItemCard';
 
 interface WishlistDrilldownProps {
   viewingUser: { id: number; name: string };
-  currentUserId: number;
   onBack: () => void;
   onClaim: (itemId: number) => Promise<void>;
   onUnclaim: (itemId: number) => Promise<void>;
@@ -35,6 +34,7 @@ export default function WishlistDrilldown({
   }, [viewingUser.id]);
 
   const fetchItems = useCallback(async (wishlistId: number) => {
+    setItems([]);
     setLoading(true);
     setError(null);
     try {
@@ -54,7 +54,6 @@ export default function WishlistDrilldown({
 
   const handleBackToWishlists = () => {
     setSelectedWishlist(null);
-    setItems([]);
   };
 
   const handleClaim = async (itemId: number) => {
@@ -135,9 +134,8 @@ export default function WishlistDrilldown({
           {wishlists.map((wl) => (
             <button
               key={wl.id}
-              className="wishlist-row"
+              className="wishlist-row-btn"
               onClick={() => void handleSelectWishlist(wl)}
-              style={{ width: '100%', textAlign: 'left', cursor: 'pointer', background: 'none', border: '1px solid #dbeafe' }}
             >
               <strong>{wl.title}</strong>
               <span className="pill">

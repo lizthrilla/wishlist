@@ -478,13 +478,21 @@ function App() {
   };
 
   const handleClaim = useCallback(async (itemId: number) => {
-    await claimWishlistItem(itemId);
-    await fetchData();
+    try {
+      await claimWishlistItem(itemId);
+      await fetchData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to claim item');
+    }
   }, [fetchData]);
 
   const handleUnclaim = useCallback(async (itemId: number) => {
-    await unclaimWishlistItem(itemId);
-    await fetchData();
+    try {
+      await unclaimWishlistItem(itemId);
+      await fetchData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to unclaim item');
+    }
   }, [fetchData]);
 
   const handleCloseDrilldown = useCallback(() => setViewingUser(null), []);
@@ -716,7 +724,6 @@ function App() {
             {viewingUser ? (
               <WishlistDrilldown
                 viewingUser={viewingUser}
-                currentUserId={currentUser.id}
                 onBack={handleCloseDrilldown}
                 onClaim={handleClaim}
                 onUnclaim={handleUnclaim}
