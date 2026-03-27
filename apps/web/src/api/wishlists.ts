@@ -33,3 +33,7 @@ export function getWishlistItemsForWishlist(wishlistId: number) {
 export function getSharedWishlist(token: string) {
   return apiRequest<SharedWishlistResponse>(`/api/shared/${token}`);
 }
+
+export function getWishlistShareToken(wishlistId: number) {
+  return apiRequest<{ shareToken: string }>(`/api/wishlists/${wishlistId}/share-token`);
+}

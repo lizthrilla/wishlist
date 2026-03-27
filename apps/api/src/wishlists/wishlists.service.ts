@@ -24,7 +24,6 @@ export class WishlistsService {
       select: {
         id: true,
         title: true,
-        shareToken: true,
         userId: true,
         createdAt: true,
         updatedAt: true,
@@ -41,7 +40,6 @@ export class WishlistsService {
       select: {
         id: true,
         title: true,
-        shareToken: true,
         userId: true,
         createdAt: true,
         updatedAt: true,
@@ -104,6 +102,18 @@ export class WishlistsService {
       isClaimed: item.claim !== null,
       isClaimedByMe: item.claim?.claimedByUserId === currentUserId,
     }));
+  }
+
+  async getWishlistShareToken(wishlistId: number, currentUserId: number) {
+    const wishlist = await this.prisma.wishlist.findUnique({
+      where: { id: wishlistId },
+      select: { shareToken: true, userId: true },
+    });
+    if (!wishlist) throw new NotFoundException(`Wishlist ${wishlistId} not found`);
+    if (wishlist.userId !== currentUserId) {
+      throw new ForbiddenException('You can only get the share link for your own wishlists');
+    }
+    return { shareToken: wishlist.shareToken };
   }
 
   async getSharedWishlist(token: string) {

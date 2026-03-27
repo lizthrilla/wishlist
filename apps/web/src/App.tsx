@@ -11,7 +11,7 @@ import {
   revokeFamilyInvite,
 } from './api/families';
 import { claimWishlistItem, deleteWishListItem, getWishlistItems, unclaimWishlistItem, updateWishlistItem } from './api/wishlistItems';
-import { createWishlist, createWishlistItem, getMyWishlists } from './api/wishlists';
+import { createWishlist, createWishlistItem, getMyWishlists, getWishlistShareToken } from './api/wishlists';
 import { addFamilyMember } from './api/users';
 import AddItemForm from './components/AddItemForm';
 import AppHeader from './components/AppHeader';
@@ -76,6 +76,7 @@ function App() {
   const [myWishlists, setMyWishlists] = useState<WishlistSummary[]>([]);
   const [createWishlistLoading, setCreateWishlistLoading] = useState(false);
   const [createWishlistError, setCreateWishlistError] = useState<string | null>(null);
+  const [copyState, setCopyState] = useState<{ id: number; status: 'copied' | 'error' } | null>(null);
   const [addItemLoading, setAddItemLoading] = useState(false);
   const [addItemError, setAddItemError] = useState<string | null>(null);
 
@@ -443,6 +444,19 @@ function App() {
     [fetchFamilies, fetchData],
   );
 
+  const handleCopyLink = useCallback(async (wishlistId: number) => {
+    try {
+      const { shareToken } = await getWishlistShareToken(wishlistId);
+      const url = `${window.location.origin}/?share=${shareToken}`;
+      await navigator.clipboard.writeText(url);
+      setCopyState({ id: wishlistId, status: 'copied' });
+      setTimeout(() => setCopyState(null), 2000);
+    } catch {
+      setCopyState({ id: wishlistId, status: 'error' });
+      setTimeout(() => setCopyState(null), 3000);
+    }
+  }, []);
+
   const handleCreateWishlist = async (title: string) => {
     setCreateWishlistLoading(true);
     setCreateWishlistError(null);
@@ -677,12 +691,11 @@ function App() {
                     </div>
                     <button
                       className="secondary-action"
-                      onClick={() => {
-                        const url = `${window.location.origin}/?share=${wl.shareToken}`;
-                        void navigator.clipboard.writeText(url);
-                      }}
+                      onClick={() => void handleCopyLink(wl.id)}
                     >
-                      Copy link
+                      {copyState?.id === wl.id && copyState.status === 'copied' ? 'Copied!' :
+                       copyState?.id === wl.id && copyState.status === 'error' ? 'Copy failed' :
+                       'Copy link'}
                     </button>
                   </div>
                 ))}

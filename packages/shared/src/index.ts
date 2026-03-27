@@ -43,7 +43,6 @@ export type AuthResponse = {
 export type WishlistSummary = {
   id: number;
   title: string;
-  shareToken: string;
   userId: number;
   itemCount: number;
   createdAt: string;

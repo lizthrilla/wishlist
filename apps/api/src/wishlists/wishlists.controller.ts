@@ -32,6 +32,14 @@ export class WishlistsController {
     return this.wishlistsService.listMyWishlists(user.id);
   }
 
+  @Get(':wishlistId/share-token')
+  getWishlistShareToken(
+    @Param('wishlistId', ParseIntPipe) wishlistId: number,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.wishlistsService.getWishlistShareToken(wishlistId, user.id);
+  }
+
   @Get(':wishlistId/items')
   getWishlistItems(
     @Param('wishlistId', ParseIntPipe) wishlistId: number,

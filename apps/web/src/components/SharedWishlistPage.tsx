@@ -19,8 +19,8 @@ export default function SharedWishlistPage({ token }: SharedWishlistPageProps) {
   }, [token]);
 
   return (
-    <div className="auth-shell">
-      <div style={{ width: 'min(100%, 600px)' }}>
+    <div className="shared-shell">
+      <div>
         <p className="eyebrow">Wishlist</p>
 
         {loading && <p className="subtle">Loading...</p>}
