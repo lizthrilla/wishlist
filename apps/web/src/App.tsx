@@ -10,14 +10,26 @@ import {
   getFamilyInvites,
   revokeFamilyInvite,
 } from './api/families';
-import { deleteWishListItem, getWishlistItems } from './api/wishlistItems';
-import { Card, DropDown, PaginationButtons, UserSearch } from './components/index';
+import { deleteWishListItem, getWishlistItems, updateWishlistItem } from './api/wishlistItems';
+import { createWishlist, createWishlistItem, getMyWishlists } from './api/wishlists';
+import AddItemForm from './components/AddItemForm';
+import AppHeader from './components/AppHeader';
+import BottomTabs from './components/BottomTabs';
+import type { AppTab } from './components/BottomTabs';
+import CreateWishlistForm from './components/CreateWishlistForm';
+import FamiliesPanel from './components/FamiliesPanel';
+import FollowUserRow from './components/FollowUserRow';
+import StatsRow from './components/StatsRow';
+import WishlistItemCard from './components/WishlistItemCard';
+import { DropDown, PaginationButtons, UserSearch } from './components/index';
 import type {
   AuthUser,
   FamilyInviteSummary,
   FamilySummary,
   PaginationMeta,
+  UpdateWishlistItemInput,
   WishlistItemResponse,
+  WishlistSummary,
 } from './types/wishlist';
 
 const DEFAULT_LIMIT = 10;
@@ -41,6 +53,8 @@ function App() {
     token: string;
     expiresAt?: string;
   } | null>(null);
+
+  // Feed state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [wishlistItems, setWishlistItems] = useState<WishlistItemResponse[]>([]);
@@ -49,30 +63,36 @@ function App() {
   const [currentPage, setCurrentPage] = useState(1);
   const [meta, setMeta] = useState<PaginationMeta>();
   const [limit, setLimit] = useState(DEFAULT_LIMIT);
+
+  // My wishlists state
+  const [myWishlists, setMyWishlists] = useState<WishlistSummary[]>([]);
+  const [createWishlistLoading, setCreateWishlistLoading] = useState(false);
+  const [createWishlistError, setCreateWishlistError] = useState<string | null>(null);
+  const [addItemLoading, setAddItemLoading] = useState(false);
+  const [addItemError, setAddItemError] = useState<string | null>(null);
+
+  // Family state
   const [families, setFamilies] = useState<FamilySummary[]>([]);
   const [familyInvites, setFamilyInvites] = useState<Record<number, FamilyInviteSummary[]>>({});
   const [latestInviteLinks, setLatestInviteLinks] = useState<Record<number, string>>({});
   const [familyLoading, setFamilyLoading] = useState(false);
   const [familyError, setFamilyError] = useState<string | null>(null);
   const [familyNotice, setFamilyNotice] = useState<string | null>(null);
-  const [familyForm, setFamilyForm] = useState({
-    createName: '',
-  });
-  const [pendingInviteToken, setPendingInviteToken] = useState<string | null>(() => {
-    if (typeof window === 'undefined') {
-      return null;
-    }
+  const [familyForm, setFamilyForm] = useState({ createName: '' });
+  const [inviteActionFamilyId, setInviteActionFamilyId] = useState<number | null>(null);
 
+  // Invite acceptance state
+  const [pendingInviteToken, setPendingInviteToken] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
     return new URLSearchParams(window.location.search).get('inviteToken');
   });
   const [inviteAcceptanceLoading, setInviteAcceptanceLoading] = useState(false);
-  const [inviteActionFamilyId, setInviteActionFamilyId] = useState<number | null>(null);
+
+  // Tab navigation
+  const [activeTab, setActiveTab] = useState<AppTab>('feed');
 
   const clearInviteTokenFromUrl = useCallback(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
+    if (typeof window === 'undefined') return;
     window.history.replaceState({}, '', window.location.pathname);
   }, []);
 
@@ -91,19 +111,16 @@ function App() {
 
   const fetchFamilyInvites = useCallback(async (familyList: FamilySummary[]) => {
     const adminFamilies = familyList.filter((family) => family.currentUserRole === 'admin');
-
     if (adminFamilies.length === 0) {
       setFamilyInvites({});
       return;
     }
-
     const entries = await Promise.all(
       adminFamilies.map(async (family) => {
         const invites = await getFamilyInvites(family.id);
         return [family.id, invites] as const;
       }),
     );
-
     setFamilyInvites(Object.fromEntries(entries));
   }, []);
 
@@ -113,7 +130,6 @@ function App() {
       setFamilyInvites({});
       return;
     }
-
     setFamilyLoading(true);
     try {
       const response = await getFamilies();
@@ -128,10 +144,7 @@ function App() {
   }, [currentUser, fetchFamilyInvites]);
 
   const fetchData = useCallback(async () => {
-    if (!currentUser) {
-      return;
-    }
-
+    if (!currentUser) return;
     setLoading(true);
     setError(null);
     try {
@@ -147,38 +160,39 @@ function App() {
     }
   }, [currentPage, currentUser, limit]);
 
+  const fetchMyWishlists = useCallback(async () => {
+    if (!currentUser) return;
+    try {
+      const data = await getMyWishlists();
+      setMyWishlists(data);
+    } catch {
+      // non-critical — user sees empty list
+    }
+  }, [currentUser]);
+
   useEffect(() => {
     void bootstrapUser();
   }, [bootstrapUser]);
 
   useEffect(() => {
-    if (!currentUser) {
-      return;
-    }
-
+    if (!currentUser) return;
     void fetchData();
     void fetchFamilies();
-  }, [currentUser, fetchData, fetchFamilies]);
+    void fetchMyWishlists();
+  }, [currentUser, fetchData, fetchFamilies, fetchMyWishlists]);
 
   useEffect(() => {
-    if (!pendingInviteToken) {
-      return;
-    }
-
+    if (!pendingInviteToken) return;
     if (!currentUser) {
       setAuthNotice('Sign in to accept your family invite link.');
       setAuthMode('login');
       return;
     }
-
-    if (inviteAcceptanceLoading) {
-      return;
-    }
+    if (inviteAcceptanceLoading) return;
 
     const acceptInvite = async () => {
       setInviteAcceptanceLoading(true);
       setFamilyError(null);
-
       try {
         const family = await acceptFamilyInvite(pendingInviteToken);
         setFamilyNotice(`You joined ${family.name}.`);
@@ -225,6 +239,18 @@ function App() {
     [fetchData],
   );
 
+  const handleEditItem = useCallback(
+    async (id: number, data: UpdateWishlistItemInput) => {
+      try {
+        await updateWishlistItem(id, data);
+        await fetchData();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to update wishlist item');
+      }
+    },
+    [fetchData],
+  );
+
   const handleSearchSubmit = () => {
     setSearchUserName(inputUserName.trim());
   };
@@ -237,6 +263,8 @@ function App() {
         item.wishlistTitle.toLowerCase().includes(searchUserName.toLowerCase()),
   );
 
+  const ownItems = wishlistItems.filter((item) => item.ownerId === currentUser?.id);
+
   const resetAuthFeedback = () => {
     setAuthError(null);
     setAuthNotice(null);
@@ -244,9 +272,7 @@ function App() {
 
   const handleAuthModeChange = (mode: AuthMode) => {
     resetAuthFeedback();
-    if (mode !== 'reset') {
-      setDevResetToken(null);
-    }
+    if (mode !== 'reset') setDevResetToken(null);
     setAuthMode(mode);
   };
 
@@ -258,44 +284,19 @@ function App() {
       const normalizedEmail = authForm.email.trim().toLowerCase();
 
       if (authMode === 'register') {
-        await register({
-          name: authForm.name.trim(),
-          email: normalizedEmail,
-          password: authForm.password,
-        });
-
-        const response = await login({
-          email: normalizedEmail,
-          password: authForm.password,
-        });
-
+        await register({ name: authForm.name.trim(), email: normalizedEmail, password: authForm.password });
+        const response = await login({ email: normalizedEmail, password: authForm.password });
         setCurrentUser(response.user);
-        setAuthForm({
-          name: '',
-          email: '',
-          password: '',
-          resetToken: '',
-          newPassword: '',
-        });
+        setAuthForm({ name: '', email: '', password: '', resetToken: '', newPassword: '' });
         setCurrentPage(1);
         setError(null);
         return;
       }
 
       if (authMode === 'login') {
-        const response = await login({
-          email: normalizedEmail,
-          password: authForm.password,
-        });
-
+        const response = await login({ email: normalizedEmail, password: authForm.password });
         setCurrentUser(response.user);
-        setAuthForm({
-          name: '',
-          email: '',
-          password: '',
-          resetToken: '',
-          newPassword: '',
-        });
+        setAuthForm({ name: '', email: '', password: '', resetToken: '', newPassword: '' });
         setCurrentPage(1);
         setError(null);
         return;
@@ -305,29 +306,15 @@ function App() {
         const response = await forgotPassword(normalizedEmail);
         setAuthNotice(response.message);
         if (response.resetToken) {
-          setDevResetToken({
-            token: response.resetToken,
-            expiresAt: response.expiresAt,
-          });
-          setAuthForm((current) => ({
-            ...current,
-            resetToken: response.resetToken ?? '',
-          }));
+          setDevResetToken({ token: response.resetToken, expiresAt: response.expiresAt });
+          setAuthForm((current) => ({ ...current, resetToken: response.resetToken ?? '' }));
         }
         return;
       }
 
-      const response = await resetPassword({
-        token: authForm.resetToken.trim(),
-        password: authForm.newPassword,
-      });
+      const response = await resetPassword({ token: authForm.resetToken.trim(), password: authForm.newPassword });
       setAuthNotice(response.message);
-      setAuthForm((current) => ({
-        ...current,
-        password: '',
-        resetToken: '',
-        newPassword: '',
-      }));
+      setAuthForm((current) => ({ ...current, password: '', resetToken: '', newPassword: '' }));
       setDevResetToken(null);
       setAuthMode('login');
     } catch (err) {
@@ -342,6 +329,7 @@ function App() {
       setCurrentUser(null);
       setWishlistItems([]);
       setMeta(undefined);
+      setMyWishlists([]);
       setFamilies([]);
       setFamilyInvites({});
       setLatestInviteLinks({});
@@ -357,7 +345,6 @@ function App() {
     event.preventDefault();
     setFamilyError(null);
     setFamilyNotice(null);
-
     try {
       const family = await createFamily(familyForm.createName.trim());
       setFamilies((current) => [...current, family]);
@@ -374,26 +361,13 @@ function App() {
     setFamilyError(null);
     setFamilyNotice(null);
     setInviteActionFamilyId(familyId);
-
     try {
       const invite = await createFamilyInvite(familyId);
-      setLatestInviteLinks((current) => ({
-        ...current,
-        [familyId]: invite.inviteUrl,
-      }));
+      setLatestInviteLinks((current) => ({ ...current, [familyId]: invite.inviteUrl }));
       setFamilyInvites((current) => ({
         ...current,
         [familyId]: [
-          {
-            id: invite.id,
-            familyId: invite.familyId,
-            createdByUser: invite.createdByUser,
-            expiresAt: invite.expiresAt,
-            usedAt: invite.usedAt,
-            revokedAt: invite.revokedAt,
-            createdAt: invite.createdAt,
-            updatedAt: invite.updatedAt,
-          },
+          { id: invite.id, familyId: invite.familyId, createdByUser: invite.createdByUser, expiresAt: invite.expiresAt, usedAt: invite.usedAt, revokedAt: invite.revokedAt, createdAt: invite.createdAt, updatedAt: invite.updatedAt },
           ...(current[familyId] ?? []),
         ],
       }));
@@ -409,7 +383,6 @@ function App() {
     setFamilyError(null);
     setFamilyNotice(null);
     setInviteActionFamilyId(familyId);
-
     try {
       await revokeFamilyInvite(inviteId);
       setFamilyInvites((current) => ({
@@ -423,6 +396,47 @@ function App() {
       setInviteActionFamilyId(null);
     }
   };
+
+  const handleCreateWishlist = async (title: string) => {
+    setCreateWishlistLoading(true);
+    setCreateWishlistError(null);
+    try {
+      const wishlist = await createWishlist(title);
+      setMyWishlists((prev) => [wishlist, ...prev]);
+    } catch (err) {
+      setCreateWishlistError(err instanceof Error ? err.message : 'Failed to create wishlist');
+    } finally {
+      setCreateWishlistLoading(false);
+    }
+  };
+
+  const handleAddItem = async (
+    wishlistId: number,
+    data: { name: string; url?: string; price?: number },
+  ) => {
+    setAddItemLoading(true);
+    setAddItemError(null);
+    try {
+      await createWishlistItem(wishlistId, data);
+      await fetchData();
+      await fetchMyWishlists();
+    } catch (err) {
+      setAddItemError(err instanceof Error ? err.message : 'Failed to add item');
+    } finally {
+      setAddItemLoading(false);
+    }
+  };
+
+  const handleViewUserWishlist = (userId: number) => {
+    const member = families.flatMap((f) => f.members).find((m) => m.id === userId);
+    if (member) {
+      setInputUserName(member.name);
+      setSearchUserName(member.name);
+    }
+    setActiveTab('feed');
+  };
+
+  // --- Rendering ---
 
   if (authLoading) {
     return <div className="app-shell">Checking your session...</div>;
@@ -445,8 +459,7 @@ function App() {
             {authMode === 'reset' && 'Reset password'}
           </h1>
           <p className="subtle">
-            {authMode === 'login' &&
-              'Sign in to browse family wishlists and manage your own items.'}
+            {authMode === 'login' && 'Sign in to browse family wishlists and manage your own items.'}
             {authMode === 'register' && 'Create an account, then sign in immediately.'}
             {authMode === 'forgot' && 'Request a short-lived reset token for your account.'}
             {authMode === 'reset' && 'Use your reset token to choose a new password.'}
@@ -462,12 +475,7 @@ function App() {
                 type="text"
                 placeholder="Name"
                 value={authForm.name}
-                onChange={(event) =>
-                  setAuthForm((current) => ({
-                    ...current,
-                    name: event.target.value,
-                  }))
-                }
+                onChange={(event) => setAuthForm((current) => ({ ...current, name: event.target.value }))}
               />
             )}
             {(showPasswordField || showForgotField) && (
@@ -475,12 +483,7 @@ function App() {
                 type="email"
                 placeholder="Email"
                 value={authForm.email}
-                onChange={(event) =>
-                  setAuthForm((current) => ({
-                    ...current,
-                    email: event.target.value,
-                  }))
-                }
+                onChange={(event) => setAuthForm((current) => ({ ...current, email: event.target.value }))}
               />
             )}
             {showPasswordField && (
@@ -488,12 +491,7 @@ function App() {
                 type="password"
                 placeholder="Password"
                 value={authForm.password}
-                onChange={(event) =>
-                  setAuthForm((current) => ({
-                    ...current,
-                    password: event.target.value,
-                  }))
-                }
+                onChange={(event) => setAuthForm((current) => ({ ...current, password: event.target.value }))}
               />
             )}
             {showResetFields && (
@@ -502,23 +500,13 @@ function App() {
                   type="text"
                   placeholder="Reset token"
                   value={authForm.resetToken}
-                  onChange={(event) =>
-                    setAuthForm((current) => ({
-                      ...current,
-                      resetToken: event.target.value,
-                    }))
-                  }
+                  onChange={(event) => setAuthForm((current) => ({ ...current, resetToken: event.target.value }))}
                 />
                 <input
                   type="password"
                   placeholder="New password"
                   value={authForm.newPassword}
-                  onChange={(event) =>
-                    setAuthForm((current) => ({
-                      ...current,
-                      newPassword: event.target.value,
-                    }))
-                  }
+                  onChange={(event) => setAuthForm((current) => ({ ...current, newPassword: event.target.value }))}
                 />
               </>
             )}
@@ -546,10 +534,7 @@ function App() {
             )}
             {authMode === 'login' && (
               <>
-                <button
-                  className="secondary-action"
-                  onClick={() => handleAuthModeChange('register')}
-                >
+                <button className="secondary-action" onClick={() => handleAuthModeChange('register')}>
                   Need an account? Register
                 </button>
                 <button className="secondary-action" onClick={() => handleAuthModeChange('forgot')}>
@@ -573,191 +558,182 @@ function App() {
     );
   }
 
+  // Collect all unique family members (excluding current user) with their family name
+  const familyMembers = families.flatMap((family) =>
+    family.members
+      .filter((member) => member.id !== currentUser.id)
+      .map((member) => ({ member, familyName: family.name })),
+  );
+
+  const myItemCount = ownItems.length;
+
   return (
     <div className="app-shell">
-      <div className="app-header">
-        <div>
-          <p className="eyebrow">Wishlist</p>
-          <h1>Wishlists</h1>
-          <p className="subtle">Signed in as {currentUser.name}</p>
-        </div>
-        <button className="secondary-action" onClick={() => void handleLogout()}>
-          Sign out
-        </button>
-      </div>
+      <AppHeader userName={currentUser.name} onSignOut={() => void handleLogout()} />
+      <StatsRow
+        myItemCount={myItemCount}
+        myWishlistCount={myWishlists.length}
+        familyCount={families.length}
+      />
+      <BottomTabs activeTab={activeTab} onChange={setActiveTab} />
 
-      <div className="content-grid">
-        <section className="panel">
-          <div className="panel-header">
-            <div>
-              <h2>Your families</h2>
-              <p className="subtle">
-                Wishlist visibility is limited to people who share at least one family with you.
-              </p>
-            </div>
-            {(familyLoading || inviteAcceptanceLoading) && <span className="pill">Refreshing</span>}
-          </div>
-          <div className="family-forms family-forms-single">
-            <form className="stacked-form" onSubmit={(event) => void handleCreateFamily(event)}>
-              <label htmlFor="create-family-name">Create family</label>
-              <input
-                id="create-family-name"
-                type="text"
-                placeholder="Family name"
-                value={familyForm.createName}
-                onChange={(event) =>
-                  setFamilyForm((current) => ({
-                    ...current,
-                    createName: event.target.value,
-                  }))
-                }
-              />
-              <button type="submit" className="primary-action">
-                Create family
-              </button>
-            </form>
-          </div>
-          {familyError && <p className="form-error">{familyError}</p>}
-          {familyNotice && <p className="form-notice">{familyNotice}</p>}
-          <div className="family-list">
-            {families.length === 0 ? (
-              <div className="empty-state">
-                <h3>No families yet</h3>
-                <p>Create one to start sharing invite links with relatives.</p>
+      <div className="tab-content">
+        {activeTab === 'wishlist' && (
+          <div className="panel">
+            <div className="panel-header">
+              <div>
+                <h2>My Wishlist</h2>
+                <p className="subtle">Create wishlists and manage your items.</p>
               </div>
-            ) : (
-              families.map((family) => (
-                <article className="family-card" key={family.id}>
-                  <div className="family-card-header">
-                    <div>
-                      <h3>{family.name}</h3>
-                      <div className="family-card-meta">
-                        <span className="pill">{family.memberCount} members</span>
-                        <span className="role-pill">{family.currentUserRole}</span>
-                      </div>
-                    </div>
+            </div>
+
+            <CreateWishlistForm
+              onSubmit={handleCreateWishlist}
+              loading={createWishlistLoading}
+              error={createWishlistError}
+            />
+
+            {myWishlists.length > 0 && (
+              <div className="wishlist-list">
+                {myWishlists.map((wl) => (
+                  <div className="wishlist-row" key={wl.id}>
+                    <strong>{wl.title}</strong>
+                    <span className="pill">{wl.itemCount} {wl.itemCount === 1 ? 'item' : 'items'}</span>
                   </div>
-                  <ul className="family-members">
-                    {family.members.map((member) => (
-                      <li key={member.id}>
-                        <strong>{member.name}</strong>
-                        <span>{member.email}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  {family.currentUserRole === 'admin' && (
-                    <div className="invite-panel">
-                      <div className="invite-panel-header">
-                        <h4>Invite links</h4>
-                        <button
-                          className="secondary-action"
-                          onClick={() => void handleCreateInvite(family.id)}
-                        >
-                          {inviteActionFamilyId === family.id ? 'Working...' : 'Create invite link'}
-                        </button>
-                      </div>
-                      {latestInviteLinks[family.id] && (
-                        <div className="invite-link-card">
-                          <label htmlFor={`invite-link-${family.id}`}>Latest invite link</label>
-                          <input
-                            id={`invite-link-${family.id}`}
-                            type="text"
-                            readOnly
-                            value={latestInviteLinks[family.id]}
-                          />
-                        </div>
-                      )}
-                      {(familyInvites[family.id] ?? []).length === 0 ? (
-                        <p className="subtle">No active invites.</p>
-                      ) : (
-                        <ul className="invite-list">
-                          {(familyInvites[family.id] ?? []).map((invite) => (
-                            <li key={invite.id}>
-                              <div>
-                                <strong>
-                                  Expires {new Date(invite.expiresAt).toLocaleString()}
-                                </strong>
-                                <p className="subtle">Created by {invite.createdByUser.name}</p>
-                              </div>
-                              <button
-                                className="secondary-action"
-                                onClick={() => void handleRevokeInvite(family.id, invite.id)}
-                              >
-                                Revoke
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  )}
-                </article>
-              ))
+                ))}
+              </div>
             )}
-          </div>
-        </section>
 
-        <section className="panel">
-          <div className="panel-header">
-            <div>
-              <h2>Shared wishlist feed</h2>
-              <p className="subtle">
-                The feed shows your own items plus wishlists from users who share a family with you.
-              </p>
-            </div>
-          </div>
-          <UserSearch
-            onSubmit={handleSearchSubmit}
-            value={inputUserName}
-            onChange={setInputUserName}
-          />
-          {loading && <h2>Loading...</h2>}
-          {error ? (
-            <div className="empty-state">
-              <h3>{error}</h3>
-            </div>
-          ) : filteredItems.length === 0 ? (
-            <div className="empty-state">
-              <h3>No visible wishlist items</h3>
-              <p>
-                {families.length === 0
-                  ? 'You can only see your own items until you create or join a family.'
-                  : 'No items match your current family access and search filters.'}
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="wishlist-stack">
-                {filteredItems.map((item) => (
-                  <Card
-                    {...item}
-                    key={item.id}
-                    onDelete={(id) => {
-                      if (item.ownerId !== currentUser.id) {
-                        setError('You can only delete items from your own wishlist.');
-                        return;
-                      }
+            <AddItemForm
+              wishlists={myWishlists}
+              onSubmit={handleAddItem}
+              loading={addItemLoading}
+              error={addItemError}
+            />
 
-                      void onDeleteItem(id);
-                    }}
+            {familyMembers.length > 0 && (
+              <div className="follow-users-section">
+                <h3>Family members</h3>
+                <p className="subtle">Jump to a family member's items in the feed.</p>
+                {familyMembers.map(({ member, familyName }) => (
+                  <FollowUserRow
+                    key={`${familyName}-${member.id}`}
+                    member={member}
+                    familyName={familyName}
+                    onViewWishlist={handleViewUserWishlist}
                   />
                 ))}
               </div>
-              <PaginationButtons
-                handleBackPage={handleBackPage}
-                handleNextPage={handleNextPage}
-                currentPage={currentPage}
-                totalPages={meta?.totalPages}
-              />
-              <DropDown
-                limit={limit}
-                setLimit={setLimit}
-                setCurrentPage={setCurrentPage}
-                totalItems={meta?.total}
-              />
-            </>
-          )}
-        </section>
+            )}
+
+            {ownItems.length > 0 && (
+              <div className="panel-header" style={{ marginTop: '1.5rem' }}>
+                <h2>My items</h2>
+              </div>
+            )}
+            {ownItems.length === 0 ? (
+              <div className="empty-state">
+                <h3>No items yet</h3>
+                <p>Add items to your wishlist above.</p>
+              </div>
+            ) : (
+              <div className="wishlist-stack">
+                {ownItems.map((item) => (
+                  <WishlistItemCard
+                    key={item.id}
+                    {...item}
+                    isOwner={true}
+                    onDelete={(id) => void onDeleteItem(id)}
+                    onEdit={handleEditItem}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'feed' && (
+          <section className="panel">
+            <div className="panel-header">
+              <div>
+                <h2>Shared wishlist feed</h2>
+                <p className="subtle">
+                  The feed shows your own items plus wishlists from users who share a family with you.
+                </p>
+              </div>
+            </div>
+            <UserSearch
+              onSubmit={handleSearchSubmit}
+              value={inputUserName}
+              onChange={setInputUserName}
+            />
+            {loading && <h2>Loading...</h2>}
+            {error ? (
+              <div className="empty-state">
+                <h3>{error}</h3>
+              </div>
+            ) : filteredItems.length === 0 ? (
+              <div className="empty-state">
+                <h3>No visible wishlist items</h3>
+                <p>
+                  {families.length === 0
+                    ? 'You can only see your own items until you create or join a family.'
+                    : 'No items match your current family access and search filters.'}
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="wishlist-stack">
+                  {filteredItems.map((item) => (
+                    <WishlistItemCard
+                      key={item.id}
+                      {...item}
+                      isOwner={item.ownerId === currentUser.id}
+                      onDelete={(id) => {
+                        if (item.ownerId !== currentUser.id) {
+                          setError('You can only delete items from your own wishlist.');
+                          return;
+                        }
+                        void onDeleteItem(id);
+                      }}
+                      onEdit={handleEditItem}
+                    />
+                  ))}
+                </div>
+                <PaginationButtons
+                  handleBackPage={handleBackPage}
+                  handleNextPage={handleNextPage}
+                  currentPage={currentPage}
+                  totalPages={meta?.totalPages}
+                />
+                <DropDown
+                  limit={limit}
+                  setLimit={setLimit}
+                  setCurrentPage={setCurrentPage}
+                  totalItems={meta?.total}
+                />
+              </>
+            )}
+          </section>
+        )}
+
+        {activeTab === 'families' && (
+          <FamiliesPanel
+            families={families}
+            familyInvites={familyInvites}
+            latestInviteLinks={latestInviteLinks}
+            familyLoading={familyLoading}
+            inviteAcceptanceLoading={inviteAcceptanceLoading}
+            inviteActionFamilyId={inviteActionFamilyId}
+            familyError={familyError}
+            familyNotice={familyNotice}
+            familyForm={familyForm}
+            onCreateFamilyFormChange={(value) => setFamilyForm({ createName: value })}
+            onCreateFamily={(event) => void handleCreateFamily(event)}
+            onCreateInvite={(familyId) => void handleCreateInvite(familyId)}
+            onRevokeInvite={(familyId, inviteId) => void handleRevokeInvite(familyId, inviteId)}
+          />
+        )}
       </div>
     </div>
   );
