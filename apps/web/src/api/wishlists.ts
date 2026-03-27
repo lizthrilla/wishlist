@@ -1,4 +1,4 @@
-import type { WishlistSummary, WishlistItemResponse } from '../types/wishlist';
+import type { WishlistSummary, WishlistItemResponse, SharedWishlistResponse } from '../types/wishlist';
 import { apiRequest } from './auth';
 
 export function getMyWishlists() {
@@ -28,4 +28,12 @@ export function getUserWishlists(userId: number) {
 
 export function getWishlistItemsForWishlist(wishlistId: number) {
   return apiRequest<WishlistItemResponse[]>(`/api/wishlists/${wishlistId}/items`);
+}
+
+export function getSharedWishlist(token: string) {
+  return apiRequest<SharedWishlistResponse>(`/api/shared/${token}`);
+}
+
+export function getWishlistShareToken(wishlistId: number) {
+  return apiRequest<{ shareToken: string }>(`/api/wishlists/${wishlistId}/share-token`);
 }

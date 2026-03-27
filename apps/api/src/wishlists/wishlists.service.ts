@@ -104,6 +104,52 @@ export class WishlistsService {
     }));
   }
 
+  async getWishlistShareToken(wishlistId: number, currentUserId: number) {
+    const wishlist = await this.prisma.wishlist.findUnique({
+      where: { id: wishlistId },
+      select: { shareToken: true, userId: true },
+    });
+    if (!wishlist) throw new NotFoundException(`Wishlist ${wishlistId} not found`);
+    if (wishlist.userId !== currentUserId) {
+      throw new ForbiddenException('You can only get the share link for your own wishlists');
+    }
+    return { shareToken: wishlist.shareToken };
+  }
+
+  async getSharedWishlist(token: string) {
+    const wishlist = await this.prisma.wishlist.findUnique({
+      where: { shareToken: token },
+      select: {
+        title: true,
+        user: { select: { name: true } },
+        items: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            name: true,
+            url: true,
+            price: true,
+            claim: { select: { id: true } },
+          },
+        },
+      },
+    });
+
+    if (!wishlist) throw new NotFoundException('Wishlist not found');
+
+    return {
+      title: wishlist.title,
+      ownerName: wishlist.user.name,
+      items: wishlist.items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        url: item.url,
+        price: item.price,
+        isClaimed: item.claim !== null,
+      })),
+    };
+  }
+
   async createWishlistItem(
     wishlistId: number,
     dto: CreateWishlistItemDto,

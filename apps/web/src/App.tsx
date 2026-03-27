@@ -11,7 +11,7 @@ import {
   revokeFamilyInvite,
 } from './api/families';
 import { claimWishlistItem, deleteWishListItem, getWishlistItems, unclaimWishlistItem, updateWishlistItem } from './api/wishlistItems';
-import { createWishlist, createWishlistItem, getMyWishlists } from './api/wishlists';
+import { createWishlist, createWishlistItem, getMyWishlists, getWishlistShareToken } from './api/wishlists';
 import { addFamilyMember } from './api/users';
 import AddItemForm from './components/AddItemForm';
 import AppHeader from './components/AppHeader';
@@ -21,6 +21,7 @@ import CreateWishlistForm from './components/CreateWishlistForm';
 import FamiliesPanel from './components/FamiliesPanel';
 import FollowUserRow from './components/FollowUserRow';
 import WishlistDrilldown from './components/WishlistDrilldown';
+import SharedWishlistPage from './components/SharedWishlistPage';
 import StatsRow from './components/StatsRow';
 import WishlistItemCard from './components/WishlistItemCard';
 import { DropDown, PaginationButtons, UserSearch } from './components/index';
@@ -39,6 +40,8 @@ const DEFAULT_LIMIT = 10;
 type AuthMode = 'login' | 'register' | 'forgot' | 'reset';
 
 function App() {
+  const [shareToken] = useState(() => new URLSearchParams(window.location.search).get('share'));
+
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -73,6 +76,7 @@ function App() {
   const [myWishlists, setMyWishlists] = useState<WishlistSummary[]>([]);
   const [createWishlistLoading, setCreateWishlistLoading] = useState(false);
   const [createWishlistError, setCreateWishlistError] = useState<string | null>(null);
+  const [copyState, setCopyState] = useState<{ id: number; status: 'copied' | 'error' } | null>(null);
   const [addItemLoading, setAddItemLoading] = useState(false);
   const [addItemError, setAddItemError] = useState<string | null>(null);
 
@@ -440,6 +444,19 @@ function App() {
     [fetchFamilies, fetchData],
   );
 
+  const handleCopyLink = useCallback(async (wishlistId: number) => {
+    try {
+      const { shareToken } = await getWishlistShareToken(wishlistId);
+      const url = `${window.location.origin}/?share=${shareToken}`;
+      await navigator.clipboard.writeText(url);
+      setCopyState({ id: wishlistId, status: 'copied' });
+      setTimeout(() => setCopyState(null), 2000);
+    } catch {
+      setCopyState({ id: wishlistId, status: 'error' });
+      setTimeout(() => setCopyState(null), 3000);
+    }
+  }, []);
+
   const handleCreateWishlist = async (title: string) => {
     setCreateWishlistLoading(true);
     setCreateWishlistError(null);
@@ -504,6 +521,10 @@ function App() {
   };
 
   // --- Rendering ---
+
+  if (shareToken) {
+    return <SharedWishlistPage token={shareToken} />;
+  }
 
   if (authLoading) {
     return <div className="app-shell">Checking your session...</div>;
@@ -664,8 +685,18 @@ function App() {
               <div className="wishlist-list">
                 {myWishlists.map((wl) => (
                   <div className="wishlist-row" key={wl.id}>
-                    <strong>{wl.title}</strong>
-                    <span className="pill">{wl.itemCount} {wl.itemCount === 1 ? 'item' : 'items'}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <strong>{wl.title}</strong>
+                      <span className="pill">{wl.itemCount} {wl.itemCount === 1 ? 'item' : 'items'}</span>
+                    </div>
+                    <button
+                      className="secondary-action"
+                      onClick={() => void handleCopyLink(wl.id)}
+                    >
+                      {copyState?.id === wl.id && copyState.status === 'copied' ? 'Copied!' :
+                       copyState?.id === wl.id && copyState.status === 'error' ? 'Copy failed' :
+                       'Copy link'}
+                    </button>
                   </div>
                 ))}
               </div>
