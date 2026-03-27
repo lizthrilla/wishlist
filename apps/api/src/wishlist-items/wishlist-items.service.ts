@@ -6,6 +6,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { FamiliesService } from '../families/families.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { UpdateWishlistItemDto } from './dto/update-wishlist-item.dto';
 
 @Injectable()
 export class WishlistItemsService {
@@ -112,6 +113,45 @@ export class WishlistItemsService {
         totalPages,
       },
     };
+  }
+
+  async updateWishlistItem(
+    id: number,
+    dto: UpdateWishlistItemDto,
+    currentUserId: number,
+  ) {
+    const item = await this.prisma.wishlistItem.findUnique({
+      where: { id },
+      select: { id: true, wishlist: { select: { userId: true } } },
+    });
+
+    if (!item) {
+      throw new NotFoundException(`WishlistItem ${id} not found`);
+    }
+
+    if (item.wishlist.userId !== currentUserId) {
+      throw new ForbiddenException(
+        'You can only edit items in your own wishlist',
+      );
+    }
+
+    return this.prisma.wishlistItem.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined && { name: dto.name.trim() }),
+        ...(dto.url !== undefined && { url: dto.url }),
+        ...(dto.price !== undefined && { price: dto.price }),
+      },
+      select: {
+        id: true,
+        name: true,
+        url: true,
+        price: true,
+        createdAt: true,
+        updatedAt: true,
+        wishlistId: true,
+      },
+    });
   }
 
   async deleteWishlistItem(id: number, currentUserId: number) {

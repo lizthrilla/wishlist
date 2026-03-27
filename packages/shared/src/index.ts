@@ -37,3 +37,24 @@ export type AuthUser = {
 export type AuthResponse = {
   user: AuthUser;
 };
+
+export type WishlistSummary = {
+  id: number;
+  title: string;
+  userId: number;
+  itemCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type UpdateWishlistItemInput = {
+  name?: string;
+  url?: string | null;
+  price?: number | null;
+};
+
+export type UserSearchResult = {
+  id: number;
+  name: string;
+  email: string;
+};

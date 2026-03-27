@@ -1,4 +1,5 @@
-import type { PaginatedWishlistItems } from '@wishlist/shared';
+import type { PaginatedWishlistItems, UpdateWishlistItemInput, WishlistItem } from '@wishlist/shared';
+import { apiRequest } from './auth';
 
 const BASE_URL = 'http://localhost:3000';
 
@@ -43,4 +44,11 @@ export async function deleteWishListItem(itemId: number) {
     } | null;
     throw new Error(data?.message ?? data?.error ?? `Failed to delete itemId: ${itemId}`);
   }
+}
+
+export function updateWishlistItem(id: number, data: UpdateWishlistItemInput) {
+  return apiRequest<WishlistItem>(`/api/wishlist-items/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
 }

@@ -6,6 +6,7 @@ import { FamiliesModule } from './families/families.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { WishlistItemsModule } from './wishlist-items/wishlist-items.module';
 import { WishlistsModule } from './wishlists/wishlists.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { WishlistsModule } from './wishlists/wishlists.module';
     FamiliesModule,
     WishlistItemsModule,
     WishlistsModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

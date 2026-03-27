@@ -2,9 +2,12 @@ import type {
   PaginatedWishlistItems,
   PaginationMeta,
   WishlistItemResponse,
+  WishlistSummary,
+  UpdateWishlistItemInput,
+  UserSearchResult,
 } from '@wishlist/shared';
 
-export type { WishlistItemResponse, PaginationMeta, PaginatedWishlistItems };
+export type { WishlistItemResponse, PaginationMeta, PaginatedWishlistItems, WishlistSummary, UpdateWishlistItemInput, UserSearchResult };
 
 export interface AuthUser {
   id: number;
@@ -47,5 +50,7 @@ export interface CreatedFamilyInvite extends FamilyInviteSummary {
 }
 
 export interface CardProps extends WishlistItemResponse {
+  isOwner: boolean;
   onDelete: (id: number) => void;
+  onEdit: (id: number, data: UpdateWishlistItemInput) => Promise<void>;
 }

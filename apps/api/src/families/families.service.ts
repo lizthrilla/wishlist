@@ -13,6 +13,7 @@ import {
 } from '../auth/auth.utils';
 import { PrismaService } from '../prisma/prisma.service';
 import { AcceptFamilyInviteDto } from './dto/accept-family-invite.dto';
+import { AddFamilyMemberDto } from './dto/add-family-member.dto';
 import { CreateFamilyDto } from './dto/create-family.dto';
 
 const FAMILY_MEMBER_SELECT = {
@@ -353,6 +354,45 @@ export class FamiliesService {
     });
 
     return { success: true };
+  }
+
+  async addMember(
+    currentUserId: number,
+    familyId: number,
+    dto: AddFamilyMemberDto,
+  ) {
+    await this.assertFamilyAdmin(currentUserId, familyId);
+
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: dto.userId },
+      select: { id: true },
+    });
+    if (!targetUser) {
+      throw new NotFoundException('User not found');
+    }
+
+    const existing = await this.prisma.familyMembership.findUnique({
+      where: { userId_familyId: { userId: dto.userId, familyId } },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new ConflictException('User is already a member of this family');
+    }
+
+    await this.prisma.familyMembership.create({
+      data: { userId: dto.userId, familyId, role: 'member' },
+    });
+
+    const family = await this.prisma.family.findUnique({
+      where: { id: familyId },
+      include: FAMILY_INCLUDE,
+    });
+
+    if (!family) {
+      throw new NotFoundException('Family not found');
+    }
+
+    return this.mapFamilySummary(family, currentUserId);
   }
 
   async assertSharedFamily(currentUserId: number, ownerId: number) {

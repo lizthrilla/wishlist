@@ -1,11 +1,13 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Delete,
   Get,
   HttpCode,
   Param,
   ParseIntPipe,
+  Patch,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -13,6 +15,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthGuard } from '../auth/auth.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { WishlistItemsService } from './wishlist-items.service';
+import { UpdateWishlistItemDto } from './dto/update-wishlist-item.dto';
 
 @Controller('wishlist-items')
 @UseGuards(AuthGuard)
@@ -45,6 +48,15 @@ export class WishlistItemsController {
       limitNum,
       userIdNum,
     );
+  }
+
+  @Patch(':id')
+  updateWishlistItem(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateWishlistItemDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.wishlistItemsService.updateWishlistItem(id, dto, user.id);
   }
 
   @Delete(':id')

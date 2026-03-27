@@ -12,6 +12,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { AcceptFamilyInviteDto } from './dto/accept-family-invite.dto';
+import { AddFamilyMemberDto } from './dto/add-family-member.dto';
 import { CreateFamilyDto } from './dto/create-family.dto';
 import { FamiliesService } from './families.service';
 
@@ -47,6 +48,15 @@ export class FamiliesController {
     @Param('familyId', ParseIntPipe) familyId: number,
   ) {
     return this.familiesService.createInvite(user.id, familyId);
+  }
+
+  @Post(':familyId/members')
+  addMember(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('familyId', ParseIntPipe) familyId: number,
+    @Body() dto: AddFamilyMemberDto,
+  ) {
+    return this.familiesService.addMember(user.id, familyId, dto);
   }
 
   @Post('invites/accept')
