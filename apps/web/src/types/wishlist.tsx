@@ -5,9 +5,11 @@ import type {
   WishlistSummary,
   UpdateWishlistItemInput,
   UserSearchResult,
+  SharedWishlistResponse,
+  SharedWishlistItem,
 } from '@wishlist/shared';
 
-export type { WishlistItemResponse, PaginationMeta, PaginatedWishlistItems, WishlistSummary, UpdateWishlistItemInput, UserSearchResult };
+export type { WishlistItemResponse, PaginationMeta, PaginatedWishlistItems, WishlistSummary, UpdateWishlistItemInput, UserSearchResult, SharedWishlistResponse, SharedWishlistItem };
 
 export interface AuthUser {
   id: number;

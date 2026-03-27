@@ -24,6 +24,7 @@ export class WishlistsService {
       select: {
         id: true,
         title: true,
+        shareToken: true,
         userId: true,
         createdAt: true,
         updatedAt: true,
@@ -40,6 +41,7 @@ export class WishlistsService {
       select: {
         id: true,
         title: true,
+        shareToken: true,
         userId: true,
         createdAt: true,
         updatedAt: true,
@@ -102,6 +104,40 @@ export class WishlistsService {
       isClaimed: item.claim !== null,
       isClaimedByMe: item.claim?.claimedByUserId === currentUserId,
     }));
+  }
+
+  async getSharedWishlist(token: string) {
+    const wishlist = await this.prisma.wishlist.findUnique({
+      where: { shareToken: token },
+      select: {
+        title: true,
+        user: { select: { name: true } },
+        items: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            name: true,
+            url: true,
+            price: true,
+            claim: { select: { id: true } },
+          },
+        },
+      },
+    });
+
+    if (!wishlist) throw new NotFoundException('Wishlist not found');
+
+    return {
+      title: wishlist.title,
+      ownerName: wishlist.user.name,
+      items: wishlist.items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        url: item.url,
+        price: item.price,
+        isClaimed: item.claim !== null,
+      })),
+    };
   }
 
   async createWishlistItem(

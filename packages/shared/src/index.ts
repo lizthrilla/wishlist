@@ -43,10 +43,25 @@ export type AuthResponse = {
 export type WishlistSummary = {
   id: number;
   title: string;
+  shareToken: string;
   userId: number;
   itemCount: number;
   createdAt: string;
   updatedAt: string;
+};
+
+export type SharedWishlistItem = {
+  id: number;
+  name: string;
+  url: string | null;
+  price: number | null;
+  isClaimed: boolean;
+};
+
+export type SharedWishlistResponse = {
+  title: string;
+  ownerName: string;
+  items: SharedWishlistItem[];
 };
 
 export type UpdateWishlistItemInput = {

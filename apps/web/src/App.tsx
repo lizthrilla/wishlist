@@ -21,6 +21,7 @@ import CreateWishlistForm from './components/CreateWishlistForm';
 import FamiliesPanel from './components/FamiliesPanel';
 import FollowUserRow from './components/FollowUserRow';
 import WishlistDrilldown from './components/WishlistDrilldown';
+import SharedWishlistPage from './components/SharedWishlistPage';
 import StatsRow from './components/StatsRow';
 import WishlistItemCard from './components/WishlistItemCard';
 import { DropDown, PaginationButtons, UserSearch } from './components/index';
@@ -39,6 +40,8 @@ const DEFAULT_LIMIT = 10;
 type AuthMode = 'login' | 'register' | 'forgot' | 'reset';
 
 function App() {
+  const [shareToken] = useState(() => new URLSearchParams(window.location.search).get('share'));
+
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -505,6 +508,10 @@ function App() {
 
   // --- Rendering ---
 
+  if (shareToken) {
+    return <SharedWishlistPage token={shareToken} />;
+  }
+
   if (authLoading) {
     return <div className="app-shell">Checking your session...</div>;
   }
@@ -664,8 +671,19 @@ function App() {
               <div className="wishlist-list">
                 {myWishlists.map((wl) => (
                   <div className="wishlist-row" key={wl.id}>
-                    <strong>{wl.title}</strong>
-                    <span className="pill">{wl.itemCount} {wl.itemCount === 1 ? 'item' : 'items'}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <strong>{wl.title}</strong>
+                      <span className="pill">{wl.itemCount} {wl.itemCount === 1 ? 'item' : 'items'}</span>
+                    </div>
+                    <button
+                      className="secondary-action"
+                      onClick={() => {
+                        const url = `${window.location.origin}/?share=${wl.shareToken}`;
+                        void navigator.clipboard.writeText(url);
+                      }}
+                    >
+                      Copy link
+                    </button>
                   </div>
                 ))}
               </div>
