@@ -65,6 +65,9 @@ function App() {
   const [meta, setMeta] = useState<PaginationMeta>();
   const [limit, setLimit] = useState(DEFAULT_LIMIT);
 
+  // My items (fetched independently from the shared feed)
+  const [myItems, setMyItems] = useState<WishlistItemResponse[]>([]);
+
   // My wishlists state
   const [myWishlists, setMyWishlists] = useState<WishlistSummary[]>([]);
   const [createWishlistLoading, setCreateWishlistLoading] = useState(false);
@@ -165,6 +168,16 @@ function App() {
     }
   }, [currentPage, currentUser, limit]);
 
+  const fetchMyItems = useCallback(async () => {
+    if (!currentUser) return;
+    try {
+      const res = await getWishlistItems(1, 100, currentUser.id);
+      setMyItems(res.data);
+    } catch {
+      // non-critical — My Wishlist tab shows empty list
+    }
+  }, [currentUser]);
+
   const fetchMyWishlists = useCallback(async () => {
     if (!currentUser) return;
     try {
@@ -184,7 +197,8 @@ function App() {
     void fetchData();
     void fetchFamilies();
     void fetchMyWishlists();
-  }, [currentUser, fetchData, fetchFamilies, fetchMyWishlists]);
+    void fetchMyItems();
+  }, [currentUser, fetchData, fetchFamilies, fetchMyWishlists, fetchMyItems]);
 
   useEffect(() => {
     if (!pendingInviteToken) return;
@@ -236,24 +250,24 @@ function App() {
     async (id: number) => {
       try {
         await deleteWishListItem(id);
-        await fetchData();
+        await Promise.all([fetchData(), fetchMyItems()]);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to delete wishlist item');
       }
     },
-    [fetchData],
+    [fetchData, fetchMyItems],
   );
 
   const handleEditItem = useCallback(
     async (id: number, data: UpdateWishlistItemInput) => {
       try {
         await updateWishlistItem(id, data);
-        await fetchData();
+        await Promise.all([fetchData(), fetchMyItems()]);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to update wishlist item');
       }
     },
-    [fetchData],
+    [fetchData, fetchMyItems],
   );
 
   const handleSearchSubmit = () => {
@@ -267,8 +281,6 @@ function App() {
         item.name.toLowerCase().includes(searchUserName.toLowerCase()) ||
         item.wishlistTitle.toLowerCase().includes(searchUserName.toLowerCase()),
   );
-
-  const ownItems = wishlistItems.filter((item) => item.ownerId === currentUser?.id);
 
   const resetAuthFeedback = () => {
     setAuthError(null);
@@ -333,6 +345,7 @@ function App() {
     } finally {
       setCurrentUser(null);
       setWishlistItems([]);
+      setMyItems([]);
       setMeta(undefined);
       setMyWishlists([]);
       setFamilies([]);
@@ -451,6 +464,7 @@ function App() {
       await createWishlistItem(resolvedId, data);
       await fetchData();
       await fetchMyWishlists();
+      await fetchMyItems();
     } catch (err) {
       setAddItemError(err instanceof Error ? err.message : 'Failed to add item');
     } finally {
@@ -596,7 +610,7 @@ function App() {
       .map((member) => ({ member, familyName: family.name })),
   );
 
-  const myItemCount = ownItems.length;
+  const myItemCount = myItems.length;
 
   return (
     <div className="app-shell">
@@ -657,19 +671,19 @@ function App() {
               </div>
             )}
 
-            {ownItems.length > 0 && (
+            {myItems.length > 0 && (
               <div className="panel-header" style={{ marginTop: '1.5rem' }}>
                 <h2>My items</h2>
               </div>
             )}
-            {ownItems.length === 0 ? (
+            {myItems.length === 0 ? (
               <div className="empty-state">
                 <h3>No items yet</h3>
                 <p>Add items to your wishlist above.</p>
               </div>
             ) : (
               <div className="wishlist-stack">
-                {ownItems.map((item) => (
+                {myItems.map((item) => (
                   <WishlistItemCard
                     key={item.id}
                     {...item}

@@ -23,8 +23,8 @@ export default function WishlistItemCard({
     try {
       await onEdit(id, {
         name: editName.trim() || name,
-        url: editUrl.trim() || undefined,
-        price: editPrice ? parseFloat(editPrice) : undefined,
+        url: editUrl.trim() || null,
+        price: editPrice ? parseFloat(editPrice) : null,
       });
       setIsEditing(false);
     } finally {

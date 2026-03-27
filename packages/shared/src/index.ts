@@ -49,8 +49,8 @@ export type WishlistSummary = {
 
 export type UpdateWishlistItemInput = {
   name?: string;
-  url?: string;
-  price?: number;
+  url?: string | null;
+  price?: number | null;
 };
 
 export type UserSearchResult = {
