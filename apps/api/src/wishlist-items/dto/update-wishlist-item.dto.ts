@@ -1,4 +1,5 @@
 import {
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -38,6 +39,7 @@ export class UpdateWishlistItemDto implements UpdateWishlistItemInput {
   @ValidateIf((o: UpdateWishlistItemDto) => o.priority !== null)
   @Type(() => Number)
   @IsInt()
+  @IsIn([1, 2, 3])
   priority?: number | null;
 
   @IsOptional()

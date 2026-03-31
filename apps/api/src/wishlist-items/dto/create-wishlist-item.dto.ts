@@ -1,4 +1,5 @@
 import {
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -34,6 +35,7 @@ export class CreateWishlistItemDto implements CreateWishlistItemInput {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
+  @IsIn([1, 2, 3])
   priority?: number;
 
   @IsOptional()

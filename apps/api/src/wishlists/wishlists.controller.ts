@@ -14,6 +14,7 @@ import { WishlistsService } from './wishlists.service';
 import { CreateWishlistItemDto } from '../wishlist-items/dto/create-wishlist-item.dto';
 import { CreateWishlistDto } from './dto/create-wishlist.dto';
 import { UpdateWishlistDto } from './dto/update-wishlist.dto';
+import { ReorderWishlistsDto } from './dto/reorder-wishlists.dto';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { AuthGuard } from '../auth/auth.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
@@ -40,10 +41,10 @@ export class WishlistsController {
   @Post('reorder')
   @HttpCode(200)
   reorderWishlists(
-    @Body() body: { orderedIds: number[] },
+    @Body() dto: ReorderWishlistsDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.wishlistsService.reorderWishlists(user.id, body.orderedIds);
+    return this.wishlistsService.reorderWishlists(user.id, dto.orderedIds);
   }
 
   @Get(':wishlistId/share-token')

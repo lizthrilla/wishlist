@@ -103,7 +103,7 @@ export default function WishlistItemCard({
     }
   };
 
-  const otherWishlists = wishlists?.filter((w) => w.title !== wishlistTitle) ?? [];
+  const otherWishlists = wishlists?.filter((w) => w.id !== wishlistId) ?? [];
 
   if (isEditing) {
     return (
