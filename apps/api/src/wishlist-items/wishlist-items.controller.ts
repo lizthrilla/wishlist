@@ -17,6 +17,7 @@ import { AuthGuard } from '../auth/auth.guard';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { WishlistItemsService } from './wishlist-items.service';
 import { UpdateWishlistItemDto } from './dto/update-wishlist-item.dto';
+import { MoveWishlistItemDto } from './dto/move-wishlist-item.dto';
 
 @Controller('wishlist-items')
 @UseGuards(AuthGuard)
@@ -49,6 +50,15 @@ export class WishlistItemsController {
       limitNum,
       userIdNum,
     );
+  }
+
+  @Patch(':id/move')
+  moveWishlistItem(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: MoveWishlistItemDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.wishlistItemsService.moveWishlistItem(id, dto, user.id);
   }
 
   @Patch(':id')

@@ -53,6 +53,13 @@ export function updateWishlistItem(id: number, data: UpdateWishlistItemInput) {
   });
 }
 
+export function moveWishlistItem(itemId: number, wishlistId: number) {
+  return apiRequest<WishlistItem>(`/api/wishlist-items/${itemId}/move`, {
+    method: 'PATCH',
+    body: JSON.stringify({ wishlistId }),
+  });
+}
+
 export function claimWishlistItem(id: number) {
   return apiRequest<{ id: number; wishlistItemId: number; claimedAt: string }>(
     `/api/wishlist-items/${id}/claim`,

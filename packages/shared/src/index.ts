@@ -2,6 +2,13 @@ export type CreateWishlistItemInput = {
   name: string; // required, trimmed
   url?: string; // optional, valid URL
   price?: number; // optional, number
+  note?: string;
+  priority?: number; // 1=high, 2=medium, 3=low
+  quantity?: number;
+  imageUrl?: string;
+  category?: string;
+  store?: string;
+  variant?: string;
 };
 
 export type WishlistItem = CreateWishlistItemInput & {
@@ -45,6 +52,8 @@ export type WishlistSummary = {
   title: string;
   userId: number;
   itemCount: number;
+  isArchived: boolean;
+  sortOrder: number | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -54,6 +63,13 @@ export type SharedWishlistItem = {
   name: string;
   url: string | null;
   price: number | null;
+  note: string | null;
+  priority: number | null;
+  quantity: number | null;
+  imageUrl: string | null;
+  category: string | null;
+  store: string | null;
+  variant: string | null;
   isClaimed: boolean;
 };
 
@@ -67,6 +83,23 @@ export type UpdateWishlistItemInput = {
   name?: string;
   url?: string | null;
   price?: number | null;
+  note?: string | null;
+  priority?: number | null;
+  quantity?: number;
+  imageUrl?: string | null;
+  category?: string | null;
+  store?: string | null;
+  variant?: string | null;
+};
+
+export type UpdateWishlistInput = {
+  title?: string;
+  isArchived?: boolean;
+  sortOrder?: number | null;
+};
+
+export type MoveWishlistItemInput = {
+  wishlistId: number;
 };
 
 export type UserSearchResult = {

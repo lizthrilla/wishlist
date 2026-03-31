@@ -16,6 +16,7 @@ interface FamiliesPanelProps {
   onCreateFamily: (event: FormEvent<HTMLFormElement>) => void;
   onCreateInvite: (familyId: number) => void;
   onRevokeInvite: (familyId: number, inviteId: number) => void;
+  onDeleteFamily?: (familyId: number) => void;
   onAddMember?: (familyId: number, userId: number) => Promise<void>;
   addMemberLoading?: boolean;
   addMemberError?: string | null;
@@ -35,6 +36,7 @@ export default function FamiliesPanel({
   onCreateFamily,
   onCreateInvite,
   onRevokeInvite,
+  onDeleteFamily,
   onAddMember,
   addMemberLoading = false,
   addMemberError = null,
@@ -92,6 +94,14 @@ export default function FamiliesPanel({
                     <span className="role-pill">{family.currentUserRole}</span>
                   </div>
                 </div>
+                {family.currentUserRole === 'admin' && onDeleteFamily && (
+                  <button
+                    className="secondary-action"
+                    onClick={() => onDeleteFamily(family.id)}
+                  >
+                    Delete family
+                  </button>
+                )}
               </div>
               <ul className="family-members">
                 {family.members.map((member) => (

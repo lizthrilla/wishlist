@@ -395,6 +395,11 @@ export class FamiliesService {
     return this.mapFamilySummary(family, currentUserId);
   }
 
+  async deleteFamily(currentUserId: number, familyId: number): Promise<void> {
+    await this.assertFamilyAdmin(currentUserId, familyId);
+    await this.prisma.family.delete({ where: { id: familyId } });
+  }
+
   async assertSharedFamily(currentUserId: number, ownerId: number) {
     if (currentUserId === ownerId) {
       return;

@@ -1,4 +1,4 @@
-import type { WishlistSummary, WishlistItemResponse, SharedWishlistResponse } from '../types/wishlist';
+import type { WishlistSummary, WishlistItemResponse, SharedWishlistResponse, UpdateWishlistInput } from '../types/wishlist';
 import { apiRequest } from './auth';
 
 export function getMyWishlists() {
@@ -12,9 +12,27 @@ export function createWishlist(title: string) {
   });
 }
 
+export function updateWishlist(wishlistId: number, data: UpdateWishlistInput) {
+  return apiRequest<WishlistSummary>(`/api/wishlists/${wishlistId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteWishlist(wishlistId: number) {
+  return apiRequest<void>(`/api/wishlists/${wishlistId}`, { method: 'DELETE' });
+}
+
+export function reorderWishlists(orderedIds: number[]) {
+  return apiRequest<void>('/api/wishlists/reorder', {
+    method: 'POST',
+    body: JSON.stringify({ orderedIds }),
+  });
+}
+
 export function createWishlistItem(
   wishlistId: number,
-  data: { name: string; url?: string; price?: number },
+  data: { name: string; url?: string; price?: number; note?: string; priority?: number; quantity?: number; imageUrl?: string; category?: string; store?: string; variant?: string },
 ) {
   return apiRequest<WishlistItemResponse>(`/api/wishlists/${wishlistId}/items`, {
     method: 'POST',

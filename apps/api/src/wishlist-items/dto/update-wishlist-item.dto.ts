@@ -1,4 +1,13 @@
-import { IsNumber, IsOptional, IsString, IsUrl, ValidateIf } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsPositive,
+  IsString,
+  IsUrl,
+  ValidateIf,
+} from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import type { UpdateWishlistItemInput } from '@wishlist/shared';
 
@@ -20,4 +29,42 @@ export class UpdateWishlistItemDto implements UpdateWishlistItemInput {
   @Type(() => Number)
   @IsNumber()
   price?: number | null;
+
+  @IsOptional()
+  @ValidateIf((o: UpdateWishlistItemDto) => o.note !== null)
+  @IsString()
+  note?: string | null;
+
+  @IsOptional()
+  @ValidateIf((o: UpdateWishlistItemDto) => o.priority !== null)
+  @Type(() => Number)
+  @IsInt()
+  @IsIn([1, 2, 3])
+  priority?: number | null;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  quantity?: number;
+
+  @IsOptional()
+  @ValidateIf((o: UpdateWishlistItemDto) => o.imageUrl !== null)
+  @IsUrl()
+  imageUrl?: string | null;
+
+  @IsOptional()
+  @ValidateIf((o: UpdateWishlistItemDto) => o.category !== null)
+  @IsString()
+  category?: string | null;
+
+  @IsOptional()
+  @ValidateIf((o: UpdateWishlistItemDto) => o.store !== null)
+  @IsString()
+  store?: string | null;
+
+  @IsOptional()
+  @ValidateIf((o: UpdateWishlistItemDto) => o.variant !== null)
+  @IsString()
+  variant?: string | null;
 }

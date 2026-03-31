@@ -34,3 +34,7 @@ export function revokeFamilyInvite(inviteId: number) {
     method: 'POST',
   });
 }
+
+export function deleteFamily(familyId: number) {
+  return apiRequest<void>(`/api/families/${familyId}`, { method: 'DELETE' });
+}

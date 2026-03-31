@@ -4,11 +4,12 @@ import type {
   WishlistItemResponse,
   WishlistSummary,
   UpdateWishlistItemInput,
+  UpdateWishlistInput,
   UserSearchResult,
   SharedWishlistResponse,
 } from '@wishlist/shared';
 
-export type { WishlistItemResponse, PaginationMeta, PaginatedWishlistItems, WishlistSummary, UpdateWishlistItemInput, UserSearchResult, SharedWishlistResponse };
+export type { WishlistItemResponse, PaginationMeta, PaginatedWishlistItems, WishlistSummary, UpdateWishlistItemInput, UpdateWishlistInput, UserSearchResult, SharedWishlistResponse };
 
 export interface AuthUser {
   id: number;
@@ -56,4 +57,6 @@ export interface CardProps extends WishlistItemResponse {
   onEdit: (id: number, data: UpdateWishlistItemInput) => Promise<void>;
   onClaim?: (id: number) => Promise<void>;
   onUnclaim?: (id: number) => Promise<void>;
+  onMove?: (itemId: number, wishlistId: number) => Promise<void>;
+  wishlists?: WishlistSummary[];
 }

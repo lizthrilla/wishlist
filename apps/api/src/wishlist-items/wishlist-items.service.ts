@@ -8,6 +8,24 @@ import { Prisma } from '@prisma/client';
 import { FamiliesService } from '../families/families.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateWishlistItemDto } from './dto/update-wishlist-item.dto';
+import { MoveWishlistItemDto } from './dto/move-wishlist-item.dto';
+
+const ITEM_FIELDS_SELECT = {
+  id: true,
+  name: true,
+  url: true,
+  price: true,
+  note: true,
+  priority: true,
+  quantity: true,
+  imageUrl: true,
+  category: true,
+  store: true,
+  variant: true,
+  createdAt: true,
+  updatedAt: true,
+  wishlistId: true,
+} as const;
 
 @Injectable()
 export class WishlistItemsService {
@@ -22,14 +40,7 @@ export class WishlistItemsService {
     limit: number,
     userId?: number,
   ) {
-    // need to include queries here and they are numbers because the controller transformed it
     const skip = (page - 1) * limit;
-    // implementing offset Pagination using limit and offset.  Skip maps to offset and takes maps to Limit
-    // ORDER BY created_at DESC
-    // LIMIT 5
-    // OFFSET 10;
-    // Page 1 = entries 1 - 5 => limit 5 offset 0
-    // Page 2 = 6 - 10 => limit 5 offset 5 (skip first 5)
     if (userId && userId !== currentUserId) {
       await this.familiesService.assertSharedFamily(currentUserId, userId);
     }
@@ -69,12 +80,7 @@ export class WishlistItemsService {
         skip,
         take: limit,
         select: {
-          id: true,
-          name: true,
-          url: true,
-          price: true,
-          createdAt: true,
-          wishlistId: true,
+          ...ITEM_FIELDS_SELECT,
           claim: { select: { claimedByUserId: true } },
           wishlist: {
             select: {
@@ -98,6 +104,13 @@ export class WishlistItemsService {
       name: item.name,
       url: item.url,
       price: item.price,
+      note: item.note,
+      priority: item.priority,
+      quantity: item.quantity,
+      imageUrl: item.imageUrl,
+      category: item.category,
+      store: item.store,
+      variant: item.variant,
       createdAt: item.createdAt,
       wishlistId: item.wishlistId,
       wishlistTitle: item.wishlist.title,
@@ -107,7 +120,6 @@ export class WishlistItemsService {
       isClaimedByMe: item.claim?.claimedByUserId === currentUserId,
     }));
     const totalPages = Math.ceil(total / limit);
-    // adding meta data to easily parse the page, limit, total and total pages for later use
     return {
       data: flatData,
       meta: {
@@ -134,9 +146,7 @@ export class WishlistItemsService {
     }
 
     if (item.wishlist.userId !== currentUserId) {
-      throw new ForbiddenException(
-        'You can only edit items in your own wishlist',
-      );
+      throw new ForbiddenException('You can only edit items in your own wishlist');
     }
 
     return this.prisma.wishlistItem.update({
@@ -145,16 +155,46 @@ export class WishlistItemsService {
         ...(dto.name !== undefined && { name: dto.name.trim() }),
         ...(dto.url !== undefined && { url: dto.url }),
         ...(dto.price !== undefined && { price: dto.price }),
+        ...(dto.note !== undefined && { note: dto.note }),
+        ...(dto.priority !== undefined && { priority: dto.priority }),
+        ...(dto.quantity !== undefined && { quantity: dto.quantity }),
+        ...(dto.imageUrl !== undefined && { imageUrl: dto.imageUrl }),
+        ...(dto.category !== undefined && { category: dto.category }),
+        ...(dto.store !== undefined && { store: dto.store }),
+        ...(dto.variant !== undefined && { variant: dto.variant }),
       },
-      select: {
-        id: true,
-        name: true,
-        url: true,
-        price: true,
-        createdAt: true,
-        updatedAt: true,
-        wishlistId: true,
-      },
+      select: ITEM_FIELDS_SELECT,
+    });
+  }
+
+  async moveWishlistItem(
+    itemId: number,
+    dto: MoveWishlistItemDto,
+    currentUserId: number,
+  ) {
+    const item = await this.prisma.wishlistItem.findUnique({
+      where: { id: itemId },
+      select: { id: true, wishlist: { select: { userId: true } } },
+    });
+
+    if (!item) throw new NotFoundException(`WishlistItem ${itemId} not found`);
+    if (item.wishlist.userId !== currentUserId) {
+      throw new ForbiddenException('You can only move items from your own wishlists');
+    }
+
+    const destination = await this.prisma.wishlist.findUnique({
+      where: { id: dto.wishlistId },
+      select: { userId: true },
+    });
+    if (!destination) throw new NotFoundException('Destination wishlist not found');
+    if (destination.userId !== currentUserId) {
+      throw new ForbiddenException('You can only move items to your own wishlists');
+    }
+
+    return this.prisma.wishlistItem.update({
+      where: { id: itemId },
+      data: { wishlistId: dto.wishlistId },
+      select: ITEM_FIELDS_SELECT,
     });
   }
 
@@ -191,7 +231,6 @@ export class WishlistItemsService {
       return claim;
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-        // Race: another request won the insert — re-fetch to determine correct response
         const existing = await this.prisma.wishlistItemClaim.findUnique({
           where: { wishlistItemId: itemId },
           select: { id: true, wishlistItemId: true, claimedByUserId: true, claimedAt: true },
@@ -226,7 +265,7 @@ export class WishlistItemsService {
       await this.prisma.wishlistItemClaim.delete({ where: { id: item.claim.id } });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
-        return; // already deleted by a concurrent request — idempotent
+        return;
       }
       throw err;
     }
@@ -238,11 +277,7 @@ export class WishlistItemsService {
         where: { id },
         select: {
           id: true,
-          wishlist: {
-            select: {
-              userId: true,
-            },
-          },
+          wishlist: { select: { userId: true } },
         },
       });
 
@@ -251,18 +286,13 @@ export class WishlistItemsService {
       }
 
       if (item.wishlist.userId !== currentUserId) {
-        throw new ForbiddenException(
-          'You can only delete items from your own wishlist',
-        );
+        throw new ForbiddenException('You can only delete items from your own wishlist');
       }
 
       await this.prisma.wishlistItem.delete({ where: { id } });
       return;
     } catch (err: any) {
-      if (
-        err instanceof NotFoundException ||
-        err instanceof ForbiddenException
-      ) {
+      if (err instanceof NotFoundException || err instanceof ForbiddenException) {
         throw err;
       }
 
