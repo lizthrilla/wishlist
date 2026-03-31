@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -74,5 +75,14 @@ export class FamiliesController {
     @Param('inviteId', ParseIntPipe) inviteId: number,
   ) {
     return this.familiesService.revokeInvite(user.id, inviteId);
+  }
+
+  @Delete(':familyId')
+  @HttpCode(204)
+  deleteFamily(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('familyId', ParseIntPipe) familyId: number,
+  ) {
+    return this.familiesService.deleteFamily(user.id, familyId);
   }
 }

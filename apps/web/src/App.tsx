@@ -6,12 +6,13 @@ import {
   acceptFamilyInvite,
   createFamily,
   createFamilyInvite,
+  deleteFamily,
   getFamilies,
   getFamilyInvites,
   revokeFamilyInvite,
 } from './api/families';
-import { claimWishlistItem, deleteWishListItem, getWishlistItems, unclaimWishlistItem, updateWishlistItem } from './api/wishlistItems';
-import { createWishlist, createWishlistItem, getMyWishlists, getWishlistShareToken } from './api/wishlists';
+import { claimWishlistItem, deleteWishListItem, getWishlistItems, moveWishlistItem, unclaimWishlistItem, updateWishlistItem } from './api/wishlistItems';
+import { createWishlist, createWishlistItem, deleteWishlist, getMyWishlists, getWishlistShareToken, reorderWishlists, updateWishlist } from './api/wishlists';
 import { addFamilyMember } from './api/users';
 import AddItemForm from './components/AddItemForm';
 import AppHeader from './components/AppHeader';
@@ -19,6 +20,7 @@ import BottomTabs from './components/BottomTabs';
 import type { AppTab } from './components/BottomTabs';
 import CreateWishlistForm from './components/CreateWishlistForm';
 import FamiliesPanel from './components/FamiliesPanel';
+import WishlistRow from './components/WishlistRow';
 import FollowUserRow from './components/FollowUserRow';
 import WishlistDrilldown from './components/WishlistDrilldown';
 import SharedWishlistPage from './components/SharedWishlistPage';
@@ -457,6 +459,73 @@ function App() {
     }
   }, []);
 
+  const handleDeleteWishlist = useCallback(async (wishlistId: number) => {
+    if (!window.confirm('Delete this wishlist? All items will be permanently removed.')) return;
+    try {
+      await deleteWishlist(wishlistId);
+      setMyWishlists((prev) => prev.filter((wl) => wl.id !== wishlistId));
+      await Promise.all([fetchData(), fetchMyItems()]);
+    } catch (err) {
+      setCreateWishlistError(err instanceof Error ? err.message : 'Failed to delete wishlist');
+    }
+  }, [fetchData, fetchMyItems]);
+
+  const handleRenameWishlist = useCallback(async (wishlistId: number, title: string) => {
+    try {
+      const updated = await updateWishlist(wishlistId, { title });
+      setMyWishlists((prev) => prev.map((wl) => wl.id === wishlistId ? { ...wl, title: updated.title } : wl));
+    } catch (err) {
+      setCreateWishlistError(err instanceof Error ? err.message : 'Failed to rename wishlist');
+    }
+  }, []);
+
+  const handleArchiveWishlist = useCallback(async (wishlistId: number, isArchived: boolean) => {
+    try {
+      const updated = await updateWishlist(wishlistId, { isArchived });
+      setMyWishlists((prev) => prev.map((wl) => wl.id === wishlistId ? { ...wl, isArchived: updated.isArchived } : wl));
+    } catch (err) {
+      setCreateWishlistError(err instanceof Error ? err.message : 'Failed to archive wishlist');
+    }
+  }, []);
+
+  const handleReorderWishlist = useCallback(async (wishlistId: number, direction: 'up' | 'down') => {
+    setMyWishlists((prev) => {
+      const idx = prev.findIndex((wl) => wl.id === wishlistId);
+      if (idx < 0) return prev;
+      const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+      if (swapIdx < 0 || swapIdx >= prev.length) return prev;
+      const newOrder = [...prev];
+      [newOrder[idx], newOrder[swapIdx]] = [newOrder[swapIdx], newOrder[idx]];
+      void reorderWishlists(newOrder.map((wl) => wl.id)).catch(() => {
+        // rollback on error is handled by re-fetching
+        void fetchMyWishlists();
+      });
+      return newOrder;
+    });
+  }, [fetchMyWishlists]);
+
+  const handleMoveItem = useCallback(async (itemId: number, wishlistId: number) => {
+    try {
+      await moveWishlistItem(itemId, wishlistId);
+      await Promise.all([fetchData(), fetchMyItems(), fetchMyWishlists()]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to move item');
+    }
+  }, [fetchData, fetchMyItems, fetchMyWishlists]);
+
+  const handleDeleteFamily = useCallback(async (familyId: number) => {
+    if (!window.confirm('Delete this family? All members will lose access. This cannot be undone.')) return;
+    try {
+      await deleteFamily(familyId);
+      setFamilies((prev) => prev.filter((f) => f.id !== familyId));
+      setFamilyInvites((prev) => { const copy = { ...prev }; delete copy[familyId]; return copy; });
+      setLatestInviteLinks((prev) => { const copy = { ...prev }; delete copy[familyId]; return copy; });
+      await fetchData();
+    } catch (err) {
+      setFamilyError(err instanceof Error ? err.message : 'Failed to delete family');
+    }
+  }, [fetchData]);
+
   const handleCreateWishlist = async (title: string) => {
     setCreateWishlistLoading(true);
     setCreateWishlistError(null);
@@ -472,7 +541,7 @@ function App() {
 
   const handleAddItem = async (
     wishlistId: number | null,
-    data: { name: string; url?: string; price?: number },
+    data: { name: string; url?: string; price?: number; note?: string; priority?: number; quantity?: number; imageUrl?: string; category?: string; store?: string; variant?: string },
   ) => {
     setAddItemLoading(true);
     setAddItemError(null);
@@ -683,21 +752,20 @@ function App() {
 
             {myWishlists.length > 0 && (
               <div className="wishlist-list">
-                {myWishlists.map((wl) => (
-                  <div className="wishlist-row" key={wl.id}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <strong>{wl.title}</strong>
-                      <span className="pill">{wl.itemCount} {wl.itemCount === 1 ? 'item' : 'items'}</span>
-                    </div>
-                    <button
-                      className="secondary-action"
-                      onClick={() => void handleCopyLink(wl.id)}
-                    >
-                      {copyState?.id === wl.id && copyState.status === 'copied' ? 'Copied!' :
-                       copyState?.id === wl.id && copyState.status === 'error' ? 'Copy failed' :
-                       'Copy link'}
-                    </button>
-                  </div>
+                {myWishlists.map((wl, idx) => (
+                  <WishlistRow
+                    key={wl.id}
+                    wishlist={wl}
+                    copyState={copyState}
+                    isFirst={idx === 0}
+                    isLast={idx === myWishlists.length - 1}
+                    onCopyLink={(id) => void handleCopyLink(id)}
+                    onRename={handleRenameWishlist}
+                    onArchive={handleArchiveWishlist}
+                    onDelete={handleDeleteWishlist}
+                    onMoveUp={(id) => void handleReorderWishlist(id, 'up')}
+                    onMoveDown={(id) => void handleReorderWishlist(id, 'down')}
+                  />
                 ))}
               </div>
             )}
@@ -743,6 +811,8 @@ function App() {
                     isOwner={true}
                     onDelete={(id) => void onDeleteItem(id)}
                     onEdit={handleEditItem}
+                    onMove={handleMoveItem}
+                    wishlists={myWishlists}
                   />
                 ))}
               </div>
@@ -843,6 +913,7 @@ function App() {
             onCreateFamily={(event) => void handleCreateFamily(event)}
             onCreateInvite={(familyId) => void handleCreateInvite(familyId)}
             onRevokeInvite={(familyId, inviteId) => void handleRevokeInvite(familyId, inviteId)}
+            onDeleteFamily={(familyId) => void handleDeleteFamily(familyId)}
             onAddMember={handleAddMember}
             addMemberLoading={addMemberLoading}
             addMemberError={addMemberError}

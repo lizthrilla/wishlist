@@ -1,7 +1,9 @@
 import {
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
+  IsPositive,
   IsString,
   IsUrl,
 } from 'class-validator';
@@ -24,4 +26,35 @@ export class CreateWishlistItemDto implements CreateWishlistItemInput {
   @Type(() => Number)
   @IsNumber()
   price?: number;
+
+  @IsOptional()
+  @IsString()
+  note?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  priority?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @IsPositive()
+  quantity?: number;
+
+  @IsOptional()
+  @IsUrl()
+  imageUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  category?: string;
+
+  @IsOptional()
+  @IsString()
+  store?: string;
+
+  @IsOptional()
+  @IsString()
+  variant?: string;
 }

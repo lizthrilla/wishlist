@@ -3,7 +3,11 @@ import type { WishlistSummary } from '../types/wishlist';
 
 interface AddItemFormProps {
   wishlists: WishlistSummary[];
-  onSubmit: (wishlistId: number | null, data: { name: string; url?: string; price?: number }) => Promise<void>;
+  onSubmit: (wishlistId: number | null, data: {
+    name: string; url?: string; price?: number;
+    note?: string; priority?: number; quantity?: number;
+    imageUrl?: string; category?: string; store?: string; variant?: string;
+  }) => Promise<void>;
   loading: boolean;
   error: string | null;
 }
@@ -13,6 +17,14 @@ export default function AddItemForm({ wishlists, onSubmit, loading, error }: Add
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [price, setPrice] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [note, setNote] = useState('');
+  const [priority, setPriority] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [category, setCategory] = useState('');
+  const [store, setStore] = useState('');
+  const [variant, setVariant] = useState('');
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -30,10 +42,25 @@ export default function AddItemForm({ wishlists, onSubmit, loading, error }: Add
       name: name.trim(),
       url: url.trim() || undefined,
       price: price ? parseFloat(price) : undefined,
+      note: note.trim() || undefined,
+      priority: priority ? parseInt(priority, 10) : undefined,
+      quantity: quantity ? parseInt(quantity, 10) : undefined,
+      imageUrl: imageUrl.trim() || undefined,
+      category: category.trim() || undefined,
+      store: store.trim() || undefined,
+      variant: variant.trim() || undefined,
     });
     setName('');
     setUrl('');
     setPrice('');
+    setNote('');
+    setPriority('');
+    setQuantity('');
+    setImageUrl('');
+    setCategory('');
+    setStore('');
+    setVariant('');
+    setShowAdvanced(false);
   };
 
   return (
@@ -85,6 +112,74 @@ export default function AddItemForm({ wishlists, onSubmit, loading, error }: Add
         onChange={(event) => setPrice(event.target.value)}
         disabled={loading}
       />
+
+      <button
+        type="button"
+        className="secondary-action"
+        onClick={() => setShowAdvanced((v) => !v)}
+        style={{ alignSelf: 'flex-start', fontSize: '0.85em' }}
+      >
+        {showAdvanced ? 'Hide advanced options' : 'Advanced options'}
+      </button>
+
+      {showAdvanced && (
+        <>
+          <textarea
+            placeholder="Note (optional)"
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            rows={2}
+            disabled={loading}
+          />
+          <select
+            value={priority}
+            onChange={(event) => setPriority(event.target.value)}
+            disabled={loading}
+          >
+            <option value="">Priority (optional)</option>
+            <option value="1">High</option>
+            <option value="2">Medium</option>
+            <option value="3">Low</option>
+          </select>
+          <input
+            type="number"
+            placeholder="Quantity (optional)"
+            min="1"
+            value={quantity}
+            onChange={(event) => setQuantity(event.target.value)}
+            disabled={loading}
+          />
+          <input
+            type="url"
+            placeholder="Image URL (optional)"
+            value={imageUrl}
+            onChange={(event) => setImageUrl(event.target.value)}
+            disabled={loading}
+          />
+          <input
+            type="text"
+            placeholder="Category (optional)"
+            value={category}
+            onChange={(event) => setCategory(event.target.value)}
+            disabled={loading}
+          />
+          <input
+            type="text"
+            placeholder="Store (optional)"
+            value={store}
+            onChange={(event) => setStore(event.target.value)}
+            disabled={loading}
+          />
+          <input
+            type="text"
+            placeholder="Size/Color/Variant (optional)"
+            value={variant}
+            onChange={(event) => setVariant(event.target.value)}
+            disabled={loading}
+          />
+        </>
+      )}
+
       {error && <p className="form-error">{error}</p>}
       <button
         type="submit"

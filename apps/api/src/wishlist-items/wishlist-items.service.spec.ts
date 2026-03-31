@@ -13,12 +13,16 @@ describe('WishlistItemsService', () => {
       findMany: jest.fn(),
       count: jest.fn(),
       findUnique: jest.fn(),
+      update: jest.fn(),
       delete: jest.fn(),
     },
     wishlistItemClaim: {
       create: jest.fn(),
       findUnique: jest.fn(),
       delete: jest.fn(),
+    },
+    wishlist: {
+      findUnique: jest.fn(),
     },
   } as unknown as PrismaService;
   const familiesServiceMock = {
@@ -479,6 +483,48 @@ describe('WishlistItemsService', () => {
       (prismaMock.wishlistItemClaim.delete as jest.Mock).mockRejectedValue(p2025);
 
       await expect(service.unclaimItem(10, 7)).resolves.toBeUndefined();
+    });
+  });
+
+  describe('moveWishlistItem', () => {
+    it('moves item to destination wishlist when caller owns both', async () => {
+      prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue({
+        id: 5, wishlist: { userId: 3 },
+      });
+      prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue({ userId: 3 });
+      prismaMock.wishlistItem.update = jest.fn().mockResolvedValue({ id: 5, wishlistId: 9 });
+
+      await service.moveWishlistItem(5, { wishlistId: 9 }, 3);
+
+      expect(prismaMock.wishlistItem.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 5 }, data: { wishlistId: 9 } }),
+      );
+    });
+
+    it('throws NotFoundException when item does not exist', async () => {
+      prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue(null);
+
+      await expect(service.moveWishlistItem(999, { wishlistId: 9 }, 3)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws ForbiddenException when caller does not own the item', async () => {
+      prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue({ id: 5, wishlist: { userId: 5 } });
+
+      await expect(service.moveWishlistItem(5, { wishlistId: 9 }, 3)).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('throws NotFoundException when destination wishlist does not exist', async () => {
+      prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue({ id: 5, wishlist: { userId: 3 } });
+      prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue(null);
+
+      await expect(service.moveWishlistItem(5, { wishlistId: 99 }, 3)).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('throws ForbiddenException when destination wishlist belongs to another user', async () => {
+      prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue({ id: 5, wishlist: { userId: 3 } });
+      prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue({ userId: 7 });
+
+      await expect(service.moveWishlistItem(5, { wishlistId: 9 }, 3)).rejects.toBeInstanceOf(ForbiddenException);
     });
   });
 });

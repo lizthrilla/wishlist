@@ -87,7 +87,9 @@ model Wishlist {
   id         Int            @id @default(autoincrement())
   title      String
   shareToken String         @unique @default(uuid())
-  user       User           @relation(fields: [userId], references: [id])
+  isArchived Boolean        @default(false)
+  sortOrder  Int?
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId     Int
   items      WishlistItem[]
   createdAt  DateTime       @default(now())
@@ -99,9 +101,16 @@ model WishlistItem {
   name       String
   url        String?
   price      Float?
+  note       String?
+  priority   Int?               // 1=high, 2=medium, 3=low
+  quantity   Int?               @default(1)
+  imageUrl   String?
+  category   String?
+  store      String?
+  variant    String?
   createdAt  DateTime           @default(now())
   updatedAt  DateTime           @updatedAt
-  wishlist   Wishlist           @relation(fields: [wishlistId], references: [id])
+  wishlist   Wishlist           @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
   wishlistId Int
   claim      WishlistItemClaim?
 }
