@@ -53,7 +53,7 @@ export default function WishlistItemCard({
         price: editPrice ? parseFloat(editPrice) : null,
         note: editNote.trim() || null,
         priority: editPriority ? parseInt(editPriority, 10) : null,
-        quantity: editQuantity ? parseInt(editQuantity, 10) : null,
+        quantity: editQuantity ? parseInt(editQuantity, 10) : undefined,
         imageUrl: editImageUrl.trim() || null,
         category: editCategory.trim() || null,
         store: editStore.trim() || null,

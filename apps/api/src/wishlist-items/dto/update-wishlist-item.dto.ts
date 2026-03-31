@@ -43,11 +43,10 @@ export class UpdateWishlistItemDto implements UpdateWishlistItemInput {
   priority?: number | null;
 
   @IsOptional()
-  @ValidateIf((o: UpdateWishlistItemDto) => o.quantity !== null)
   @Type(() => Number)
   @IsInt()
   @IsPositive()
-  quantity?: number | null;
+  quantity?: number;
 
   @IsOptional()
   @ValidateIf((o: UpdateWishlistItemDto) => o.imageUrl !== null)

@@ -85,7 +85,7 @@ export type UpdateWishlistItemInput = {
   price?: number | null;
   note?: string | null;
   priority?: number | null;
-  quantity?: number | null;
+  quantity?: number;
   imageUrl?: string | null;
   category?: string | null;
   store?: string | null;

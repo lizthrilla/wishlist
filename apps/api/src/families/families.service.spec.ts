@@ -3,6 +3,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../prisma/prisma.service';
@@ -323,7 +324,7 @@ describe('FamiliesService', () => {
     it('throws NotFoundException when user is not a member', async () => {
       prismaMock.familyMembership.findUnique = jest.fn().mockResolvedValue(null);
 
-      await expect(service.deleteFamily(3, 99)).rejects.toThrow();
+      await expect(service.deleteFamily(3, 99)).rejects.toBeInstanceOf(NotFoundException);
       expect(prismaMock.family.delete).not.toHaveBeenCalled();
     });
 
