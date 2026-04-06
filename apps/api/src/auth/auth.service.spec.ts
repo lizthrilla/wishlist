@@ -130,7 +130,7 @@ describe('AuthService', () => {
     });
   });
 
-  it('creates a reset token and returns only a message for known emails', async () => {
+  it('returns a reset token in non-production environments for known emails', async () => {
     prismaMock.user.findUnique = jest.fn().mockResolvedValue({ id: 3 });
     prismaMock.passwordResetToken.deleteMany = jest.fn().mockResolvedValue({
       count: 0,
@@ -147,17 +147,40 @@ describe('AuthService', () => {
     });
     expect(prismaMock.passwordResetToken.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({
-          userId: 3,
-        }),
+        data: expect.objectContaining({ userId: 3 }),
       }),
     );
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       message:
         'If an account exists for that email, a reset token has been generated.',
+      resetToken: expect.any(String),
     });
-    expect(result).not.toHaveProperty('resetToken');
-    expect(result).not.toHaveProperty('expiresAt');
+  });
+
+  it('does not return a reset token in production', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+    prismaMock.user.findUnique = jest.fn().mockResolvedValue({ id: 3 });
+    prismaMock.passwordResetToken.deleteMany = jest.fn().mockResolvedValue({
+      count: 0,
+    });
+    prismaMock.passwordResetToken.create = jest.fn().mockResolvedValue({
+      id: 1,
+      expiresAt: new Date('2026-03-25T12:00:00.000Z'),
+    });
+
+    try {
+      const result = await service.forgotPassword({
+        email: 'alice@example.com',
+      });
+      expect(result).toEqual({
+        message:
+          'If an account exists for that email, a reset token has been generated.',
+      });
+      expect(result).not.toHaveProperty('resetToken');
+    } finally {
+      process.env.NODE_ENV = originalNodeEnv;
+    }
   });
 
   it('resets the password and invalidates sessions for a valid token', async () => {

@@ -350,6 +350,16 @@ export class WishlistItemsService {
       );
     }
 
-    await this.prisma.wishlistItem.delete({ where: { id } });
+    try {
+      await this.prisma.wishlistItem.delete({ where: { id } });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2025'
+      ) {
+        throw new NotFoundException(`WishlistItem ${id} not found`);
+      }
+      throw err;
+    }
   }
 }

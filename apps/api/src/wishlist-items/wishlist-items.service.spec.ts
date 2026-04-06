@@ -357,6 +357,23 @@ describe('WishlistItemsService', () => {
     expect(prismaMock.wishlistItem.delete).not.toHaveBeenCalled();
   });
 
+  it('throws NotFoundException on concurrent-delete race (P2025 from delete)', async () => {
+    prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue({
+      id: 5,
+      wishlist: { userId: 7 },
+    });
+    const p2025 = new Prisma.PrismaClientKnownRequestError('Not found', {
+      code: 'P2025',
+      clientVersion: 'test',
+      meta: {},
+    });
+    prismaMock.wishlistItem.delete = jest.fn().mockRejectedValue(p2025);
+
+    await expect(service.deleteWishlistItem(5, 7)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
   describe('claimItem', () => {
     const claimedAt = new Date('2025-06-01');
 

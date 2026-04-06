@@ -197,9 +197,12 @@ export class AuthService {
 
     // TODO: send rawToken via email here before returning — it cannot be recovered
     //       after this function exits since only the hash is persisted.
+    //       Until email delivery exists, the token is returned in non-production
+    //       environments so the reset flow remains operable during development.
     return {
       message:
         'If an account exists for that email, a reset token has been generated.',
+      ...(process.env.NODE_ENV !== 'production' && { resetToken: rawToken }),
     };
   }
 
