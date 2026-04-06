@@ -227,8 +227,7 @@ function App() {
         setFamilyNotice(`You joined ${family.name}.`);
         clearInviteTokenFromUrl();
         setPendingInviteToken(null);
-        await fetchFamilies();
-        await fetchData();
+        await Promise.all([fetchFamilies(), fetchData()]);
       } catch (err) {
         setFamilyError(err instanceof Error ? err.message : 'Failed to accept family invite');
         clearInviteTokenFromUrl();
@@ -378,11 +377,9 @@ function App() {
     setFamilyNotice(null);
     try {
       const family = await createFamily(familyForm.createName.trim());
-      setFamilies((current) => [...current, family]);
       setFamilyForm({ createName: '' });
       setFamilyNotice(`Created ${family.name}.`);
-      await fetchFamilies();
-      await fetchData();
+      await Promise.all([fetchFamilies(), fetchData()]);
     } catch (err) {
       setFamilyError(err instanceof Error ? err.message : 'Failed to create family');
     }
@@ -435,8 +432,7 @@ function App() {
       try {
         await addFamilyMember(familyId, userId);
         setFamilyNotice('Member added successfully.');
-        await fetchFamilies();
-        await fetchData();
+        await Promise.all([fetchFamilies(), fetchData()]);
       } catch (err) {
         setAddMemberError(err instanceof Error ? err.message : 'Failed to add member');
       } finally {
@@ -553,9 +549,7 @@ function App() {
         resolvedId = newWishlist.id;
       }
       await createWishlistItem(resolvedId, data);
-      await fetchData();
-      await fetchMyWishlists();
-      await fetchMyItems();
+      await Promise.all([fetchData(), fetchMyWishlists(), fetchMyItems()]);
     } catch (err) {
       setAddItemError(err instanceof Error ? err.message : 'Failed to add item');
     } finally {
@@ -722,13 +716,11 @@ function App() {
       .map((member) => ({ member, familyName: family.name })),
   );
 
-  const myItemCount = myItems.length;
-
   return (
     <div className="app-shell">
       <AppHeader userName={currentUser.name} onSignOut={() => void handleLogout()} />
       <StatsRow
-        myItemCount={myItemCount}
+        myItemCount={myItems.length}
         myWishlistCount={myWishlists.length}
         familyCount={families.length}
       />
@@ -866,13 +858,7 @@ function App() {
                           key={item.id}
                           {...item}
                           isOwner={item.ownerId === currentUser.id}
-                          onDelete={(id) => {
-                            if (item.ownerId !== currentUser.id) {
-                              setError('You can only delete items from your own wishlist.');
-                              return;
-                            }
-                            void onDeleteItem(id);
-                          }}
+                          onDelete={(id) => void onDeleteItem(id)}
                           onEdit={handleEditItem}
                           onClaim={item.ownerId !== currentUser.id ? handleClaim : undefined}
                           onUnclaim={item.ownerId !== currentUser.id ? handleUnclaim : undefined}
