@@ -151,7 +151,7 @@ export class WishlistItemsService {
       );
     }
 
-    return this.prisma.wishlistItem.update({
+    const updated = await this.prisma.wishlistItem.update({
       where: { id },
       data: {
         ...(dto.name !== undefined && { name: dto.name.trim() }),
@@ -165,8 +165,37 @@ export class WishlistItemsService {
         ...(dto.store !== undefined && { store: dto.store }),
         ...(dto.variant !== undefined && { variant: dto.variant }),
       },
-      select: ITEM_FIELDS_SELECT,
+      select: {
+        ...ITEM_FIELDS_SELECT,
+        wishlist: {
+          select: {
+            title: true,
+            userId: true,
+            user: { select: { name: true } },
+          },
+        },
+      },
     });
+
+    return {
+      id: updated.id,
+      name: updated.name,
+      url: updated.url,
+      price: updated.price,
+      note: updated.note,
+      priority: updated.priority,
+      quantity: updated.quantity,
+      imageUrl: updated.imageUrl,
+      category: updated.category,
+      store: updated.store,
+      variant: updated.variant,
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
+      wishlistId: updated.wishlistId,
+      wishlistTitle: updated.wishlist.title,
+      ownerId: updated.wishlist.userId,
+      ownerName: updated.wishlist.user.name,
+    };
   }
 
   async moveWishlistItem(

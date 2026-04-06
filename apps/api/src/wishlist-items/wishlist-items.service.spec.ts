@@ -266,6 +266,69 @@ describe('WishlistItemsService', () => {
     );
   });
 
+  describe('updateWishlistItem', () => {
+    it('returns a flat response with wishlist owner info', async () => {
+      prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue({
+        id: 1,
+        wishlist: { userId: 7 },
+      });
+      prismaMock.wishlistItem.update = jest.fn().mockResolvedValue({
+        id: 1,
+        name: 'Updated Book',
+        url: null,
+        price: 20,
+        note: null,
+        priority: null,
+        quantity: 1,
+        imageUrl: null,
+        category: null,
+        store: null,
+        variant: null,
+        createdAt: new Date('2025-01-01'),
+        updatedAt: new Date('2025-06-01'),
+        wishlistId: 3,
+        wishlist: { title: 'Reading List', userId: 7, user: { name: 'Alice' } },
+      });
+
+      const result = await service.updateWishlistItem(
+        1,
+        { name: 'Updated Book', price: 20 },
+        7,
+      );
+
+      expect(result).toMatchObject({
+        id: 1,
+        name: 'Updated Book',
+        wishlistId: 3,
+        wishlistTitle: 'Reading List',
+        ownerId: 7,
+        ownerName: 'Alice',
+      });
+      expect(result).not.toHaveProperty('wishlist');
+    });
+
+    it('throws NotFoundException when item does not exist', async () => {
+      prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue(null);
+
+      await expect(
+        service.updateWishlistItem(999, { name: 'X' }, 7),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(prismaMock.wishlistItem.update).not.toHaveBeenCalled();
+    });
+
+    it('throws ForbiddenException when user does not own the item', async () => {
+      prismaMock.wishlistItem.findUnique = jest.fn().mockResolvedValue({
+        id: 1,
+        wishlist: { userId: 99 },
+      });
+
+      await expect(
+        service.updateWishlistItem(1, { name: 'X' }, 7),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prismaMock.wishlistItem.update).not.toHaveBeenCalled();
+    });
+  });
+
   it('deletes a wishlist item successfully', async () => {
     prismaMock.wishlistItem.delete = jest.fn().mockResolvedValue(undefined);
 

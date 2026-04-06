@@ -195,7 +195,8 @@ export class AuthService {
       },
     });
 
-    // TODO: send rawToken via email rather than returning it in the response
+    // TODO: send rawToken via email here before returning — it cannot be recovered
+    //       after this function exits since only the hash is persisted.
     return {
       message:
         'If an account exists for that email, a reset token has been generated.',
