@@ -130,7 +130,7 @@ describe('AuthService', () => {
     });
   });
 
-  it('returns a development reset token for known emails', async () => {
+  it('returns a reset token in non-production environments for known emails', async () => {
     prismaMock.user.findUnique = jest.fn().mockResolvedValue({ id: 3 });
     prismaMock.passwordResetToken.deleteMany = jest.fn().mockResolvedValue({
       count: 0,
@@ -147,22 +147,17 @@ describe('AuthService', () => {
     });
     expect(prismaMock.passwordResetToken.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({
-          userId: 3,
-        }),
+        data: expect.objectContaining({ userId: 3 }),
       }),
     );
-    expect(result).toEqual(
-      expect.objectContaining({
-        message:
-          'If an account exists for that email, a reset token has been generated.',
-        resetToken: expect.any(String),
-        expiresAt: new Date('2026-03-25T12:00:00.000Z'),
-      }),
-    );
+    expect(result).toMatchObject({
+      message:
+        'If an account exists for that email, a reset token has been generated.',
+      resetToken: expect.any(String),
+    });
   });
 
-  it('returns a reset token even in production so the flow remains usable', async () => {
+  it('does not return a reset token in production', async () => {
     const originalNodeEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = 'production';
     prismaMock.user.findUnique = jest.fn().mockResolvedValue({ id: 3 });
@@ -178,13 +173,11 @@ describe('AuthService', () => {
       const result = await service.forgotPassword({
         email: 'alice@example.com',
       });
-
-      expect(result).toEqual(
-        expect.objectContaining({
-          resetToken: expect.any(String),
-          expiresAt: new Date('2026-03-25T12:00:00.000Z'),
-        }),
-      );
+      expect(result).toEqual({
+        message:
+          'If an account exists for that email, a reset token has been generated.',
+      });
+      expect(result).not.toHaveProperty('resetToken');
     } finally {
       process.env.NODE_ENV = originalNodeEnv;
     }

@@ -371,6 +371,8 @@ export class FamiliesService {
       throw new NotFoundException('User not found');
     }
 
+    // Pre-check to give a clear error in the common (non-racing) case;
+    // the P2002 catch below handles the concurrent-insert race condition.
     const existing = await this.prisma.familyMembership.findUnique({
       where: { userId_familyId: { userId: dto.userId, familyId } },
       select: { id: true },
@@ -379,9 +381,19 @@ export class FamiliesService {
       throw new ConflictException('User is already a member of this family');
     }
 
-    await this.prisma.familyMembership.create({
-      data: { userId: dto.userId, familyId, role: 'member' },
-    });
+    try {
+      await this.prisma.familyMembership.create({
+        data: { userId: dto.userId, familyId, role: 'member' },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('User is already a member of this family');
+      }
+      throw error;
+    }
 
     const family = await this.prisma.family.findUnique({
       where: { id: familyId },

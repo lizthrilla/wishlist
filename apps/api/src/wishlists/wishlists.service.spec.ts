@@ -43,7 +43,23 @@ describe('WishlistsService', () => {
     prismaMock.wishlist.findUnique = jest
       .fn()
       .mockResolvedValue({ id: 1, userId: 3 });
-    const createdItem = { id: 10, name: 'Book', wishlistId: 1 };
+    const createdItem = {
+      id: 10,
+      name: 'Book',
+      url: 'https://example.com',
+      price: 25,
+      note: null,
+      priority: null,
+      quantity: 1,
+      imageUrl: null,
+      category: null,
+      store: null,
+      variant: null,
+      createdAt: new Date('2025-01-01'),
+      updatedAt: new Date('2025-01-01'),
+      wishlistId: 1,
+      wishlist: { title: 'My List', userId: 3, user: { name: 'Alice' } },
+    };
     prismaMock.wishlistItem.create = jest.fn().mockResolvedValue(createdItem);
 
     const dto = { name: 'Book', url: 'https://example.com', price: 25 };
@@ -63,14 +79,37 @@ describe('WishlistsService', () => {
         }),
       }),
     );
-    expect(result).toEqual(createdItem);
+    expect(result).toMatchObject({
+      id: 10,
+      name: 'Book',
+      wishlistId: 1,
+      wishlistTitle: 'My List',
+      ownerId: 3,
+      ownerName: 'Alice',
+    });
   });
 
   it('trims the name before creating the item', async () => {
     prismaMock.wishlist.findUnique = jest
       .fn()
       .mockResolvedValue({ id: 2, userId: 8 });
-    prismaMock.wishlistItem.create = jest.fn().mockResolvedValue({ id: 11 });
+    prismaMock.wishlistItem.create = jest.fn().mockResolvedValue({
+      id: 11,
+      name: 'New Shoes',
+      url: null,
+      price: null,
+      note: null,
+      priority: null,
+      quantity: 1,
+      imageUrl: null,
+      category: null,
+      store: null,
+      variant: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      wishlistId: 2,
+      wishlist: { title: 'My Shoes', userId: 8, user: { name: 'Bob' } },
+    });
 
     const dto = { name: '   New Shoes   ' };
     await service.createWishlistItem(2, dto, 8);
@@ -94,7 +133,9 @@ describe('WishlistsService', () => {
 
   describe('getWishlistShareToken', () => {
     it('returns shareToken for the wishlist owner', async () => {
-      prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue({ shareToken: 'abc-uuid', userId: 3 });
+      prismaMock.wishlist.findUnique = jest
+        .fn()
+        .mockResolvedValue({ shareToken: 'abc-uuid', userId: 3 });
 
       const result = await service.getWishlistShareToken(1, 3);
 
@@ -108,25 +149,53 @@ describe('WishlistsService', () => {
     it('throws NotFoundException for an unknown wishlist', async () => {
       prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue(null);
 
-      await expect(service.getWishlistShareToken(999, 3)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(
+        service.getWishlistShareToken(999, 3),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('throws ForbiddenException when caller is not the owner', async () => {
-      prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue({ shareToken: 'abc-uuid', userId: 5 });
+      prismaMock.wishlist.findUnique = jest
+        .fn()
+        .mockResolvedValue({ shareToken: 'abc-uuid', userId: 5 });
 
-      await expect(service.getWishlistShareToken(1, 3)).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.getWishlistShareToken(1, 3)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
     });
   });
 
   describe('getSharedWishlist', () => {
     it('returns title, ownerName, and items with isClaimed only', async () => {
-      const baseItem = { note: null, priority: null, quantity: 1, imageUrl: null, category: null, store: null, variant: null };
+      const baseItem = {
+        note: null,
+        priority: null,
+        quantity: 1,
+        imageUrl: null,
+        category: null,
+        store: null,
+        variant: null,
+      };
       prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue({
         title: 'Birthday',
         user: { name: 'Alice' },
         items: [
-          { id: 1, name: 'Book', url: 'https://example.com', price: 20, ...baseItem, claim: null },
-          { id: 2, name: 'Shoes', url: null, price: null, ...baseItem, claim: { id: 5 } },
+          {
+            id: 1,
+            name: 'Book',
+            url: 'https://example.com',
+            price: 20,
+            ...baseItem,
+            claim: null,
+          },
+          {
+            id: 2,
+            name: 'Shoes',
+            url: null,
+            price: null,
+            ...baseItem,
+            claim: { id: 5 },
+          },
         ],
       });
 
@@ -136,13 +205,31 @@ describe('WishlistsService', () => {
         title: 'Birthday',
         ownerName: 'Alice',
         items: [
-          { id: 1, name: 'Book', url: 'https://example.com', price: 20, ...baseItem, isClaimed: false },
-          { id: 2, name: 'Shoes', url: null, price: null, ...baseItem, isClaimed: true },
+          {
+            id: 1,
+            name: 'Book',
+            url: 'https://example.com',
+            price: 20,
+            ...baseItem,
+            isClaimed: false,
+          },
+          {
+            id: 2,
+            name: 'Shoes',
+            url: null,
+            price: null,
+            ...baseItem,
+            isClaimed: true,
+          },
         ],
       });
       expect(prismaMock.wishlist.findUnique).toHaveBeenCalledWith({
         where: { shareToken: 'some-token' },
-        select: expect.objectContaining({ title: true, user: expect.anything(), items: expect.anything() }),
+        select: expect.objectContaining({
+          title: true,
+          user: expect.anything(),
+          items: expect.anything(),
+        }),
       });
     });
 
@@ -150,18 +237,24 @@ describe('WishlistsService', () => {
       prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue({
         title: 'My List',
         user: { name: 'Bob' },
-        items: [{ id: 1, name: 'Camera', url: null, price: 300, claim: { id: 9 } }],
+        items: [
+          { id: 1, name: 'Camera', url: null, price: 300, claim: { id: 9 } },
+        ],
       });
 
       const result = await service.getSharedWishlist('abc');
 
-      result.items.forEach((item) => expect(item).not.toHaveProperty('claimedByUserId'));
+      result.items.forEach((item) =>
+        expect(item).not.toHaveProperty('claimedByUserId'),
+      );
     });
 
     it('throws NotFoundException for an unknown token', async () => {
       prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue(null);
 
-      await expect(service.getSharedWishlist('bad-token')).rejects.toBeInstanceOf(NotFoundException);
+      await expect(
+        service.getSharedWishlist('bad-token'),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('returns an empty items array when the wishlist has no items', async () => {
@@ -185,31 +278,111 @@ describe('WishlistsService', () => {
       userId: 5,
       user: { name: 'Alice' },
     };
-    const extraFields = { note: null, priority: null, quantity: 1, imageUrl: null, category: null, store: null, variant: null };
+    const extraFields = {
+      note: null,
+      priority: null,
+      quantity: 1,
+      imageUrl: null,
+      category: null,
+      store: null,
+      variant: null,
+    };
 
     it('returns items mapped with isClaimed and isClaimedByMe, without claimedByUserId', async () => {
       prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue(wishlist);
-      (familiesServiceMock.assertSharedFamily as jest.Mock).mockResolvedValue(undefined);
+      (familiesServiceMock.assertSharedFamily as jest.Mock).mockResolvedValue(
+        undefined,
+      );
       prismaMock.wishlistItem.findMany = jest.fn().mockResolvedValue([
-        { id: 1, name: 'Shoes', url: null, price: 50, ...extraFields, createdAt, wishlistId: 3, claim: null },
-        { id: 2, name: 'Bag', url: null, price: 80, ...extraFields, createdAt, wishlistId: 3, claim: { claimedByUserId: 7 } },
-        { id: 3, name: 'Hat', url: null, price: 30, ...extraFields, createdAt, wishlistId: 3, claim: { claimedByUserId: 99 } },
+        {
+          id: 1,
+          name: 'Shoes',
+          url: null,
+          price: 50,
+          ...extraFields,
+          createdAt,
+          wishlistId: 3,
+          claim: null,
+        },
+        {
+          id: 2,
+          name: 'Bag',
+          url: null,
+          price: 80,
+          ...extraFields,
+          createdAt,
+          wishlistId: 3,
+          claim: { claimedByUserId: 7 },
+        },
+        {
+          id: 3,
+          name: 'Hat',
+          url: null,
+          price: 30,
+          ...extraFields,
+          createdAt,
+          wishlistId: 3,
+          claim: { claimedByUserId: 99 },
+        },
       ]);
 
       const result = await service.getWishlistItemsForWishlist(7, 3);
 
       expect(result).toEqual([
-        { id: 1, name: 'Shoes', url: null, price: 50, ...extraFields, createdAt, wishlistId: 3, wishlistTitle: 'Birthday', ownerId: 5, ownerName: 'Alice', isClaimed: false, isClaimedByMe: false },
-        { id: 2, name: 'Bag', url: null, price: 80, ...extraFields, createdAt, wishlistId: 3, wishlistTitle: 'Birthday', ownerId: 5, ownerName: 'Alice', isClaimed: true, isClaimedByMe: true },
-        { id: 3, name: 'Hat', url: null, price: 30, ...extraFields, createdAt, wishlistId: 3, wishlistTitle: 'Birthday', ownerId: 5, ownerName: 'Alice', isClaimed: true, isClaimedByMe: false },
+        {
+          id: 1,
+          name: 'Shoes',
+          url: null,
+          price: 50,
+          ...extraFields,
+          createdAt,
+          wishlistId: 3,
+          wishlistTitle: 'Birthday',
+          ownerId: 5,
+          ownerName: 'Alice',
+          isClaimed: false,
+          isClaimedByMe: false,
+        },
+        {
+          id: 2,
+          name: 'Bag',
+          url: null,
+          price: 80,
+          ...extraFields,
+          createdAt,
+          wishlistId: 3,
+          wishlistTitle: 'Birthday',
+          ownerId: 5,
+          ownerName: 'Alice',
+          isClaimed: true,
+          isClaimedByMe: true,
+        },
+        {
+          id: 3,
+          name: 'Hat',
+          url: null,
+          price: 30,
+          ...extraFields,
+          createdAt,
+          wishlistId: 3,
+          wishlistTitle: 'Birthday',
+          ownerId: 5,
+          ownerName: 'Alice',
+          isClaimed: true,
+          isClaimedByMe: false,
+        },
       ]);
-      result.forEach((item) => expect(item).not.toHaveProperty('claimedByUserId'));
+      result.forEach((item) =>
+        expect(item).not.toHaveProperty('claimedByUserId'),
+      );
     });
 
     it('throws NotFoundException when wishlist does not exist', async () => {
       prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue(null);
 
-      await expect(service.getWishlistItemsForWishlist(7, 999)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(
+        service.getWishlistItemsForWishlist(7, 999),
+      ).rejects.toBeInstanceOf(NotFoundException);
 
       expect(prismaMock.wishlistItem.findMany).not.toHaveBeenCalled();
     });
@@ -220,7 +393,9 @@ describe('WishlistsService', () => {
         new ForbiddenException('No shared family'),
       );
 
-      await expect(service.getWishlistItemsForWishlist(7, 3)).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(
+        service.getWishlistItemsForWishlist(7, 3),
+      ).rejects.toBeInstanceOf(ForbiddenException);
 
       expect(prismaMock.wishlistItem.findMany).not.toHaveBeenCalled();
     });
@@ -228,41 +403,61 @@ describe('WishlistsService', () => {
 
   describe('deleteWishlist', () => {
     it('deletes the wishlist when the caller is the owner', async () => {
-      prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue({ userId: 3 });
+      prismaMock.wishlist.findUnique = jest
+        .fn()
+        .mockResolvedValue({ userId: 3 });
       prismaMock.wishlist.delete = jest.fn().mockResolvedValue({});
 
       await service.deleteWishlist(1, 3);
 
-      expect(prismaMock.wishlist.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(prismaMock.wishlist.delete).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
     });
 
     it('throws NotFoundException when wishlist does not exist', async () => {
       prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue(null);
 
-      await expect(service.deleteWishlist(999, 3)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.deleteWishlist(999, 3)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
       expect(prismaMock.wishlist.delete).not.toHaveBeenCalled();
     });
 
     it('throws ForbiddenException when caller is not the owner', async () => {
-      prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue({ userId: 5 });
+      prismaMock.wishlist.findUnique = jest
+        .fn()
+        .mockResolvedValue({ userId: 5 });
 
-      await expect(service.deleteWishlist(1, 3)).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.deleteWishlist(1, 3)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
       expect(prismaMock.wishlist.delete).not.toHaveBeenCalled();
     });
   });
 
   describe('updateWishlist', () => {
     it('renames the wishlist when caller is the owner', async () => {
-      prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue({ userId: 3 });
+      prismaMock.wishlist.findUnique = jest
+        .fn()
+        .mockResolvedValue({ userId: 3 });
       prismaMock.wishlist.update = jest.fn().mockResolvedValue({
-        id: 1, title: 'Renamed', userId: 3, isArchived: false, sortOrder: null,
-        createdAt: new Date(), updatedAt: new Date(), _count: { items: 2 },
+        id: 1,
+        title: 'Renamed',
+        userId: 3,
+        isArchived: false,
+        sortOrder: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        _count: { items: 2 },
       });
 
       const result = await service.updateWishlist(1, { title: 'Renamed' }, 3);
 
       expect(prismaMock.wishlist.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ title: 'Renamed' }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ title: 'Renamed' }),
+        }),
       );
       expect(result.itemCount).toBe(2);
     });
@@ -270,26 +465,42 @@ describe('WishlistsService', () => {
     it('throws NotFoundException when wishlist does not exist', async () => {
       prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue(null);
 
-      await expect(service.updateWishlist(999, { title: 'X' }, 3)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(
+        service.updateWishlist(999, { title: 'X' }, 3),
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
     it('throws ForbiddenException when caller is not the owner', async () => {
-      prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue({ userId: 5 });
+      prismaMock.wishlist.findUnique = jest
+        .fn()
+        .mockResolvedValue({ userId: 5 });
 
-      await expect(service.updateWishlist(1, { title: 'X' }, 3)).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(
+        service.updateWishlist(1, { title: 'X' }, 3),
+      ).rejects.toBeInstanceOf(ForbiddenException);
     });
 
     it('archives the wishlist', async () => {
-      prismaMock.wishlist.findUnique = jest.fn().mockResolvedValue({ userId: 3 });
+      prismaMock.wishlist.findUnique = jest
+        .fn()
+        .mockResolvedValue({ userId: 3 });
       prismaMock.wishlist.update = jest.fn().mockResolvedValue({
-        id: 1, title: 'My List', userId: 3, isArchived: true, sortOrder: null,
-        createdAt: new Date(), updatedAt: new Date(), _count: { items: 0 },
+        id: 1,
+        title: 'My List',
+        userId: 3,
+        isArchived: true,
+        sortOrder: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        _count: { items: 0 },
       });
 
       const result = await service.updateWishlist(1, { isArchived: true }, 3);
 
       expect(prismaMock.wishlist.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ isArchived: true }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ isArchived: true }),
+        }),
       );
       expect(result.isArchived).toBe(true);
     });
@@ -304,9 +515,18 @@ describe('WishlistsService', () => {
 
       expect(prismaMock.$transaction).toHaveBeenCalled();
       expect(prismaMock.wishlist.updateMany).toHaveBeenCalledTimes(3);
-      expect(prismaMock.wishlist.updateMany).toHaveBeenCalledWith({ where: { id: 10, userId: 3 }, data: { sortOrder: 0 } });
-      expect(prismaMock.wishlist.updateMany).toHaveBeenCalledWith({ where: { id: 20, userId: 3 }, data: { sortOrder: 1 } });
-      expect(prismaMock.wishlist.updateMany).toHaveBeenCalledWith({ where: { id: 30, userId: 3 }, data: { sortOrder: 2 } });
+      expect(prismaMock.wishlist.updateMany).toHaveBeenCalledWith({
+        where: { id: 10, userId: 3 },
+        data: { sortOrder: 0 },
+      });
+      expect(prismaMock.wishlist.updateMany).toHaveBeenCalledWith({
+        where: { id: 20, userId: 3 },
+        data: { sortOrder: 1 },
+      });
+      expect(prismaMock.wishlist.updateMany).toHaveBeenCalledWith({
+        where: { id: 30, userId: 3 },
+        data: { sortOrder: 2 },
+      });
     });
   });
 });
