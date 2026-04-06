@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { SharedWishlistController } from './shared-wishlist.controller';
@@ -27,7 +28,9 @@ describe('SharedWishlistController', () => {
     const response = {
       title: 'Birthday',
       ownerName: 'Alice',
-      items: [{ id: 1, name: 'Book', url: null, price: null, isClaimed: false }],
+      items: [
+        { id: 1, name: 'Book', url: null, price: null, isClaimed: false },
+      ],
     };
     (serviceMock.getSharedWishlist as jest.Mock).mockResolvedValue(response);
 
@@ -42,6 +45,8 @@ describe('SharedWishlistController', () => {
       new NotFoundException('Wishlist not found'),
     );
 
-    await expect(controller.getSharedWishlist('bad-token')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      controller.getSharedWishlist('bad-token'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });

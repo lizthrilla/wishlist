@@ -12,10 +12,8 @@ export class UsersService {
     return this.prisma.user.findMany({
       where: {
         id: { not: currentUserId },
-        OR: [
-          { name: { contains: trimmed } },
-          { email: { contains: trimmed } },
-        ],
+        // SQLite is case-insensitive by default; add mode: 'insensitive' when migrating to Postgres
+        OR: [{ name: { contains: trimmed } }, { email: { contains: trimmed } }],
       },
       select: { id: true, name: true, email: true },
       take: 10,

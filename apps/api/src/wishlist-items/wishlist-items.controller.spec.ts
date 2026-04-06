@@ -55,9 +55,9 @@ describe('WishlistItemsController', () => {
 
     await controller.getWishlistItems(
       { id: 7, name: 'Alice', email: 'alice@example.com' },
-      '1',
-      '10',
-      '9',
+      1,
+      10,
+      9,
     );
 
     expect(serviceMock.getWishlistItems).toHaveBeenCalledWith(7, 1, 10, 9);

@@ -305,26 +305,44 @@ describe('FamiliesService', () => {
     const adminMembership = {
       role: 'admin',
       family: {
-        id: 1, name: 'Smith Family', joinCode: 'abc',
-        creatorId: 3, createdAt: new Date(), updatedAt: new Date(),
-        memberships: [{ userId: 3, role: 'admin', user: { id: 3, name: 'Alice', email: 'alice@example.com' } }],
+        id: 1,
+        name: 'Smith Family',
+        joinCode: 'abc',
+        creatorId: 3,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        memberships: [
+          {
+            userId: 3,
+            role: 'admin',
+            user: { id: 3, name: 'Alice', email: 'alice@example.com' },
+          },
+        ],
         invites: [],
       },
     };
 
     it('deletes family when caller is admin', async () => {
-      prismaMock.familyMembership.findUnique = jest.fn().mockResolvedValue(adminMembership);
+      prismaMock.familyMembership.findUnique = jest
+        .fn()
+        .mockResolvedValue(adminMembership);
       prismaMock.family.delete = jest.fn().mockResolvedValue({});
 
       await service.deleteFamily(3, 1);
 
-      expect(prismaMock.family.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+      expect(prismaMock.family.delete).toHaveBeenCalledWith({
+        where: { id: 1 },
+      });
     });
 
     it('throws NotFoundException when user is not a member', async () => {
-      prismaMock.familyMembership.findUnique = jest.fn().mockResolvedValue(null);
+      prismaMock.familyMembership.findUnique = jest
+        .fn()
+        .mockResolvedValue(null);
 
-      await expect(service.deleteFamily(3, 99)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.deleteFamily(3, 99)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
       expect(prismaMock.family.delete).not.toHaveBeenCalled();
     });
 
@@ -334,7 +352,9 @@ describe('FamiliesService', () => {
         role: 'member',
       });
 
-      await expect(service.deleteFamily(3, 1)).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.deleteFamily(3, 1)).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
       expect(prismaMock.family.delete).not.toHaveBeenCalled();
     });
   });

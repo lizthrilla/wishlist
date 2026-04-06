@@ -33,6 +33,7 @@ const ITEM_FIELDS_SELECT = {
   store: true,
   variant: true,
   createdAt: true,
+  updatedAt: true,
   wishlistId: true,
 } as const;
 
@@ -76,12 +77,21 @@ export class WishlistsService {
   async getWishlistItemsForWishlist(currentUserId: number, wishlistId: number) {
     const wishlist = await this.prisma.wishlist.findUnique({
       where: { id: wishlistId },
-      select: { id: true, title: true, userId: true, user: { select: { name: true } } },
+      select: {
+        id: true,
+        title: true,
+        userId: true,
+        user: { select: { name: true } },
+      },
     });
 
-    if (!wishlist) throw new NotFoundException(`Wishlist ${wishlistId} not found`);
+    if (!wishlist)
+      throw new NotFoundException(`Wishlist ${wishlistId} not found`);
 
-    await this.familiesService.assertSharedFamily(currentUserId, wishlist.userId);
+    await this.familiesService.assertSharedFamily(
+      currentUserId,
+      wishlist.userId,
+    );
 
     const items = await this.prisma.wishlistItem.findMany({
       where: { wishlistId },
@@ -119,9 +129,12 @@ export class WishlistsService {
       where: { id: wishlistId },
       select: { shareToken: true, userId: true },
     });
-    if (!wishlist) throw new NotFoundException(`Wishlist ${wishlistId} not found`);
+    if (!wishlist)
+      throw new NotFoundException(`Wishlist ${wishlistId} not found`);
     if (wishlist.userId !== currentUserId) {
-      throw new ForbiddenException('You can only get the share link for your own wishlists');
+      throw new ForbiddenException(
+        'You can only get the share link for your own wishlists',
+      );
     }
     return { shareToken: wishlist.shareToken };
   }
@@ -179,10 +192,12 @@ export class WishlistsService {
     }
 
     if (wishlist.userId !== currentUserId) {
-      throw new ForbiddenException('You can only add items to your own wishlist');
+      throw new ForbiddenException(
+        'You can only add items to your own wishlist',
+      );
     }
 
-    return this.prisma.wishlistItem.create({
+    const created = await this.prisma.wishlistItem.create({
       data: {
         name: dto.name.trim(),
         url: dto.url,
@@ -198,17 +213,47 @@ export class WishlistsService {
       },
       select: {
         ...ITEM_FIELDS_SELECT,
-        wishlist: { select: { title: true, userId: true, user: { select: { name: true } } } },
+        wishlist: {
+          select: {
+            title: true,
+            userId: true,
+            user: { select: { name: true } },
+          },
+        },
       },
     });
+
+    return {
+      id: created.id,
+      name: created.name,
+      url: created.url,
+      price: created.price,
+      note: created.note,
+      priority: created.priority,
+      quantity: created.quantity,
+      imageUrl: created.imageUrl,
+      category: created.category,
+      store: created.store,
+      variant: created.variant,
+      createdAt: created.createdAt,
+      updatedAt: created.updatedAt,
+      wishlistId: created.wishlistId,
+      wishlistTitle: created.wishlist.title,
+      ownerId: created.wishlist.userId,
+      ownerName: created.wishlist.user.name,
+    };
   }
 
-  async deleteWishlist(wishlistId: number, currentUserId: number): Promise<void> {
+  async deleteWishlist(
+    wishlistId: number,
+    currentUserId: number,
+  ): Promise<void> {
     const wishlist = await this.prisma.wishlist.findUnique({
       where: { id: wishlistId },
       select: { userId: true },
     });
-    if (!wishlist) throw new NotFoundException(`Wishlist ${wishlistId} not found`);
+    if (!wishlist)
+      throw new NotFoundException(`Wishlist ${wishlistId} not found`);
     if (wishlist.userId !== currentUserId) {
       throw new ForbiddenException('You can only delete your own wishlists');
     }
@@ -224,7 +269,8 @@ export class WishlistsService {
       where: { id: wishlistId },
       select: { userId: true },
     });
-    if (!wishlist) throw new NotFoundException(`Wishlist ${wishlistId} not found`);
+    if (!wishlist)
+      throw new NotFoundException(`Wishlist ${wishlistId} not found`);
     if (wishlist.userId !== currentUserId) {
       throw new ForbiddenException('You can only update your own wishlists');
     }
@@ -241,7 +287,10 @@ export class WishlistsService {
     return { ...updated, itemCount: updated._count.items };
   }
 
-  async reorderWishlists(currentUserId: number, orderedIds: number[]): Promise<void> {
+  async reorderWishlists(
+    currentUserId: number,
+    orderedIds: number[],
+  ): Promise<void> {
     await this.prisma.$transaction(
       orderedIds.map((id, index) =>
         this.prisma.wishlist.updateMany({

@@ -379,9 +379,19 @@ export class FamiliesService {
       throw new ConflictException('User is already a member of this family');
     }
 
-    await this.prisma.familyMembership.create({
-      data: { userId: dto.userId, familyId, role: 'member' },
-    });
+    try {
+      await this.prisma.familyMembership.create({
+        data: { userId: dto.userId, familyId, role: 'member' },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('User is already a member of this family');
+      }
+      throw error;
+    }
 
     const family = await this.prisma.family.findUnique({
       where: { id: familyId },

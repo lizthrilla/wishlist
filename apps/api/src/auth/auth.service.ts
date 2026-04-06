@@ -187,7 +187,7 @@ export class AuthService {
     });
 
     const rawToken = createResetToken();
-    const resetToken = await this.prisma.passwordResetToken.create({
+    await this.prisma.passwordResetToken.create({
       data: {
         tokenHash: hashSessionToken(rawToken),
         userId: user.id,
@@ -195,11 +195,10 @@ export class AuthService {
       },
     });
 
+    // TODO: send rawToken via email rather than returning it in the response
     return {
       message:
         'If an account exists for that email, a reset token has been generated.',
-      resetToken: rawToken,
-      expiresAt: resetToken.expiresAt,
     };
   }
 

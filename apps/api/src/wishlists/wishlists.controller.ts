@@ -60,7 +60,10 @@ export class WishlistsController {
     @Param('wishlistId', ParseIntPipe) wishlistId: number,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.wishlistsService.getWishlistItemsForWishlist(user.id, wishlistId);
+    return this.wishlistsService.getWishlistItemsForWishlist(
+      user.id,
+      wishlistId,
+    );
   }
 
   @Post(':wishlistId/items')

@@ -1,7 +1,7 @@
 import {
-  BadRequestException,
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
   HttpCode,
@@ -24,31 +24,20 @@ import { MoveWishlistItemDto } from './dto/move-wishlist-item.dto';
 export class WishlistItemsController {
   constructor(private readonly wishlistItemsService: WishlistItemsService) {}
 
-  /// `api/wishlist-items/` if i put something in @Get it adds that to make it `/api/wishlist-items/wishlist/items
   @Get()
   getWishlistItems(
     @CurrentUser() user: AuthenticatedUser,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-    @Query('userId') userId?: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('userId', new ParseIntPipe({ optional: true })) userId?: number,
   ) {
-    // ?page=2&limit=2 however querys are always strings because it's the url so i need to translate it
-    const pageNum = Math.max(parseInt(page ?? '1', 10) || 1, 1);
-    // moved the safety check to these constants and ensured there is no weird behavior
-    const limitNum = Math.min(
-      Math.max(parseInt(limit ?? '10', 10) || 10, 1),
-      100,
-    );
-    const userIdNum = userId ? parseInt(userId, 10) : undefined;
-    if (userId !== undefined && Number.isNaN(userIdNum)) {
-      throw new BadRequestException('userId must be a number');
-    }
-
+    const pageNum = Math.max(page, 1);
+    const limitNum = Math.min(Math.max(limit, 1), 100);
     return this.wishlistItemsService.getWishlistItems(
       user.id,
       pageNum,
       limitNum,
-      userIdNum,
+      userId,
     );
   }
 
