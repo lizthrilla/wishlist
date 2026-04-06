@@ -5,6 +5,7 @@ const PRIORITY_LABELS: Record<number, string> = { 1: 'High', 2: 'Medium', 3: 'Lo
 
 export default function WishlistItemCard({
   id,
+  wishlistId,
   name,
   ownerName,
   wishlistTitle,

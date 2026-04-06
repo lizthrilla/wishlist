@@ -7,7 +7,7 @@ interface ButtonProps {
 const Button = ({ name, handleButton, disabled }: ButtonProps) => {
   return (
     <button
-      type="submit"
+      type="button"
       className="
                 px-4 py-2 mx-2 rounded-md
                 bg-blue-600 text-white
