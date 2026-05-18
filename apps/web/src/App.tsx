@@ -331,9 +331,9 @@ function App() {
       if (authMode === 'forgot') {
         const response = await forgotPassword(normalizedEmail);
         setAuthNotice(response.message);
-        if (response.resetToken) {
-          setDevResetToken({ token: response.resetToken, expiresAt: response.expiresAt });
-          setAuthForm((current) => ({ ...current, resetToken: response.resetToken ?? '' }));
+        if (response._devOnlyResetToken) {
+          setDevResetToken({ token: response._devOnlyResetToken, expiresAt: response.expiresAt });
+          setAuthForm((current) => ({ ...current, resetToken: response._devOnlyResetToken ?? '' }));
         }
         return;
       }

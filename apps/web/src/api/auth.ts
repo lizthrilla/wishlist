@@ -62,7 +62,7 @@ type AuthResponse = {
 
 export type ForgotPasswordResponse = {
   message: string;
-  resetToken?: string;
+  _devOnlyResetToken?: string;
   expiresAt?: string;
 };
 
