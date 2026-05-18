@@ -154,6 +154,7 @@ describe('AuthService', () => {
       message:
         'If an account exists for that email, a reset token has been generated.',
       resetToken: expect.any(String),
+      expiresAt: expect.any(String),
     });
   });
 
