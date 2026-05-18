@@ -202,7 +202,10 @@ export class AuthService {
     return {
       message:
         'If an account exists for that email, a reset token has been generated.',
-      ...(process.env.NODE_ENV !== 'production' && { resetToken: rawToken }),
+      ...(process.env.NODE_ENV !== 'production' && {
+        resetToken: rawToken,
+        expiresAt: new Date(Date.now() + PASSWORD_RESET_DURATION_MS).toISOString(),
+      }),
     };
   }
 

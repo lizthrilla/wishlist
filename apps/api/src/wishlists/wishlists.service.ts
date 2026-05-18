@@ -6,6 +6,11 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { FamiliesService } from '../families/families.service';
 import { CreateWishlistItemDto } from '../wishlist-items/dto/create-wishlist-item.dto';
+import {
+  ITEM_FIELDS_SELECT,
+  WISHLIST_OWNER_SELECT,
+  toWishlistItemResponse,
+} from '../wishlist-items/dto/wishlist-item-response';
 import { CreateWishlistDto } from './dto/create-wishlist.dto';
 import { UpdateWishlistDto } from './dto/update-wishlist.dto';
 
@@ -18,23 +23,6 @@ const WISHLIST_SUMMARY_SELECT = {
   createdAt: true,
   updatedAt: true,
   _count: { select: { items: true } },
-} as const;
-
-const ITEM_FIELDS_SELECT = {
-  id: true,
-  name: true,
-  url: true,
-  price: true,
-  note: true,
-  priority: true,
-  quantity: true,
-  imageUrl: true,
-  category: true,
-  store: true,
-  variant: true,
-  createdAt: true,
-  updatedAt: true,
-  wishlistId: true,
 } as const;
 
 @Injectable()
@@ -214,34 +202,12 @@ export class WishlistsService {
       select: {
         ...ITEM_FIELDS_SELECT,
         wishlist: {
-          select: {
-            title: true,
-            userId: true,
-            user: { select: { name: true } },
-          },
+          select: WISHLIST_OWNER_SELECT,
         },
       },
     });
 
-    return {
-      id: created.id,
-      name: created.name,
-      url: created.url,
-      price: created.price,
-      note: created.note,
-      priority: created.priority,
-      quantity: created.quantity,
-      imageUrl: created.imageUrl,
-      category: created.category,
-      store: created.store,
-      variant: created.variant,
-      createdAt: created.createdAt,
-      updatedAt: created.updatedAt,
-      wishlistId: created.wishlistId,
-      wishlistTitle: created.wishlist.title,
-      ownerId: created.wishlist.userId,
-      ownerName: created.wishlist.user.name,
-    };
+    return toWishlistItemResponse(created);
   }
 
   async deleteWishlist(

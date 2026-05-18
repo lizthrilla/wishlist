@@ -62,4 +62,43 @@ describe('WishlistItemsController', () => {
 
     expect(serviceMock.getWishlistItems).toHaveBeenCalledWith(7, 1, 10, 9);
   });
+
+  describe('pagination clamping', () => {
+    beforeEach(() => {
+      serviceMock.getWishlistItems = jest.fn().mockResolvedValue({
+        data: [],
+        meta: { page: 1, limit: 10, total: 0, totalPages: 0 },
+      });
+    });
+
+    it('clamps negative page to 1', async () => {
+      await controller.getWishlistItems(
+        { id: 7, name: 'Alice', email: 'alice@example.com' },
+        -5,
+        10,
+        undefined,
+      );
+      expect(serviceMock.getWishlistItems).toHaveBeenCalledWith(7, 1, 10, undefined);
+    });
+
+    it('clamps zero limit to 1', async () => {
+      await controller.getWishlistItems(
+        { id: 7, name: 'Alice', email: 'alice@example.com' },
+        1,
+        0,
+        undefined,
+      );
+      expect(serviceMock.getWishlistItems).toHaveBeenCalledWith(7, 1, 1, undefined);
+    });
+
+    it('clamps overlarge limit to 100', async () => {
+      await controller.getWishlistItems(
+        { id: 7, name: 'Alice', email: 'alice@example.com' },
+        1,
+        999,
+        undefined,
+      );
+      expect(serviceMock.getWishlistItems).toHaveBeenCalledWith(7, 1, 100, undefined);
+    });
+  });
 });

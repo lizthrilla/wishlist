@@ -13,6 +13,7 @@ export class UsersService {
       where: {
         id: { not: currentUserId },
         // SQLite is case-insensitive by default; add mode: 'insensitive' when migrating to Postgres
+        // See: https://github.com/lizthrilla/wishlist/issues/96
         OR: [{ name: { contains: trimmed } }, { email: { contains: trimmed } }],
       },
       select: { id: true, name: true, email: true },

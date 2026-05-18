@@ -9,23 +9,11 @@ import { FamiliesService } from '../families/families.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateWishlistItemDto } from './dto/update-wishlist-item.dto';
 import { MoveWishlistItemDto } from './dto/move-wishlist-item.dto';
-
-const ITEM_FIELDS_SELECT = {
-  id: true,
-  name: true,
-  url: true,
-  price: true,
-  note: true,
-  priority: true,
-  quantity: true,
-  imageUrl: true,
-  category: true,
-  store: true,
-  variant: true,
-  createdAt: true,
-  updatedAt: true,
-  wishlistId: true,
-} as const;
+import {
+  ITEM_FIELDS_SELECT,
+  WISHLIST_OWNER_SELECT,
+  toWishlistItemResponse,
+} from './dto/wishlist-item-response';
 
 @Injectable()
 export class WishlistItemsService {
@@ -83,41 +71,16 @@ export class WishlistItemsService {
           ...ITEM_FIELDS_SELECT,
           claim: { select: { claimedByUserId: true } },
           wishlist: {
-            select: {
-              id: true,
-              title: true,
-              userId: true,
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
-            },
+            select: WISHLIST_OWNER_SELECT,
           },
         },
       }),
       this.prisma.wishlistItem.count({ where }),
     ]);
-    const flatData = data.map((item) => ({
-      id: item.id,
-      name: item.name,
-      url: item.url,
-      price: item.price,
-      note: item.note,
-      priority: item.priority,
-      quantity: item.quantity,
-      imageUrl: item.imageUrl,
-      category: item.category,
-      store: item.store,
-      variant: item.variant,
-      createdAt: item.createdAt,
-      wishlistId: item.wishlistId,
-      wishlistTitle: item.wishlist.title,
-      ownerId: item.wishlist.user.id,
-      ownerName: item.wishlist.user.name,
-      isClaimed: item.claim !== null,
-      isClaimedByMe: item.claim?.claimedByUserId === currentUserId,
+    const flatData = data.map(({ claim, ...item }) => ({
+      ...toWishlistItemResponse(item),
+      isClaimed: claim !== null,
+      isClaimedByMe: claim?.claimedByUserId === currentUserId,
     }));
     const totalPages = Math.ceil(total / limit);
     return {
@@ -168,34 +131,12 @@ export class WishlistItemsService {
       select: {
         ...ITEM_FIELDS_SELECT,
         wishlist: {
-          select: {
-            title: true,
-            userId: true,
-            user: { select: { name: true } },
-          },
+          select: WISHLIST_OWNER_SELECT,
         },
       },
     });
 
-    return {
-      id: updated.id,
-      name: updated.name,
-      url: updated.url,
-      price: updated.price,
-      note: updated.note,
-      priority: updated.priority,
-      quantity: updated.quantity,
-      imageUrl: updated.imageUrl,
-      category: updated.category,
-      store: updated.store,
-      variant: updated.variant,
-      createdAt: updated.createdAt,
-      updatedAt: updated.updatedAt,
-      wishlistId: updated.wishlistId,
-      wishlistTitle: updated.wishlist.title,
-      ownerId: updated.wishlist.userId,
-      ownerName: updated.wishlist.user.name,
-    };
+    return toWishlistItemResponse(updated);
   }
 
   async moveWishlistItem(

@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method */
+import { ForbiddenException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import { AuthGuard } from '../auth/auth.guard';
@@ -72,6 +73,16 @@ describe('UsersController', () => {
 
       expect(wishlistsServiceMock.listUserWishlists).toHaveBeenCalledWith(1, 2);
       expect(result).toEqual(wishlists);
+    });
+
+    it('propagates ForbiddenException when target user is not in same family', async () => {
+      (wishlistsServiceMock.listUserWishlists as jest.Mock).mockRejectedValue(
+        new ForbiddenException(),
+      );
+
+      await expect(controller.listUserWishlists(99, currentUser)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 });
