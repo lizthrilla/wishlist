@@ -7,6 +7,7 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { AUTH_COOKIE_NAME, SESSION_DURATION_MS } from './auth.constants';
@@ -20,11 +21,13 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('register')
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('login')
   async login(
     @Body() dto: LoginDto,
@@ -46,11 +49,13 @@ export class AuthController {
     };
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('forgot-password')
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('reset-password')
   async resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
